@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <style>
+      #loadingScreen {
+        opacity: 0;
+      }
+    </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vite App</title>
   </head>
@@ -10,16 +15,30 @@
     <div id="app">
     </div>
 
-    <div id="loading-screen">
-      <div class="loading-bar-container">
-        <div id="loading-bar"></div>
-      </div>
+    <div class="loading-container" id="loadingScreen">
+        <div class="particles" id="particles"></div>
+        
+        <div class="logo-container">
+            <div class="logo-text">fluorineheit</div>
+            <div class="logo-fill" id="logoFill">fluorineheit</div>
+        </div>
+        
+        <div class="progress-text" id="progressText">Loading Assets</div>
+        
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <div class="loading-dots"></div>
     </div>
+
 
     <div id="experience">
       <canvas id="experience-canvas" class="experience-canvas"></canvas>
     </div>
+    <script src="/src/loading.js" defer></script>
     <script type="module" src="/src/main.js"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
   </body>
 </html>

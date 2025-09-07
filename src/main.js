@@ -23,26 +23,43 @@ let currentUIScreen = null;
 let uiGroup = new THREE.Group();
 uiGroup.name = "UIGroup";
 
-// Loading Screen Logic 
-const loadingScreen = document.getElementById('loading-screen');
-const loadingBar = document.getElementById('loading-bar');
+// // Loading Screen Logic 
+// const loadingScreen = document.getElementById('loading-screen');
+// const loadingBar = document.getElementById('loading-bar');
+
+// const loadingManager = new THREE.LoadingManager();
+
+// loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
+//   const progressRatio = itemsLoaded / itemsTotal;
+//   loadingBar.style.width = `${progressRatio * 100}%`;
+// };
+
+// loadingManager.onLoad = () => {
+//   // Use a timeout to ensure the bar fills before fading
+//   setTimeout(() => {
+//     loadingScreen.classList.add('fade-out');
+//     // Optional: remove the loading screen from the DOM after the transition
+//     setTimeout(() => {
+//       loadingScreen.style.display = 'none';
+//     }, 1000); // Must match the transition duration in CSS
+//   }, 500);
+// };
 
 const loadingManager = new THREE.LoadingManager();
 
 loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
-  const progressRatio = itemsLoaded / itemsTotal;
-  loadingBar.style.width = `${progressRatio * 100}%`;
+    const progress = (itemsLoaded / itemsTotal) * 100;
+    
+    if (window.loadingScreen) {
+        window.loadingScreen.updateProgress(progress);
+    }
 };
 
 loadingManager.onLoad = () => {
-  // Use a timeout to ensure the bar fills before fading
-  setTimeout(() => {
-    loadingScreen.classList.add('fade-out');
-    // Optional: remove the loading screen from the DOM after the transition
-    setTimeout(() => {
-      loadingScreen.style.display = 'none';
-    }, 1000); // Must match the transition duration in CSS
-  }, 500);
+    // Ensure the loader finishes at 100%
+    if (window.loadingScreen) {
+        window.loadingScreen.updateProgress(100, "Ready!");
+    }
 };
 
 // loaders
@@ -109,7 +126,6 @@ async function loadCustomFonts() {
       document.fonts.add(font);
     });
 
-    console.log('Custom fonts loaded successfully');
     return true;
   } catch (error) {
     console.warn('Failed to load custom fonts:', error);
@@ -159,66 +175,9 @@ async function loadSocialIcons() {
   });
 
   const results = await Promise.all(loadPromises);
-  console.log('Icon loading results:', results);
   return iconCache;
 }
 
-async function loadTechLogos() {
-  const techLogos = [
-    // Frontend
-    { name: 'html', path: '/icons/html5.svg' },
-    { name: 'css', path: '/icons/css.svg' },
-    { name: 'javascript', path: '/icons/javascript.svg' },
-    { name: 'vue', path: '/icons/vuedotjs.svg' },
-    { name: 'react', path: '/icons/react.svg' },
-    { name: 'tailwind', path: '/icons/tailwind.svg' },
-    
-    // Backend
-    { name: 'php', path: '/icons/php.svg' },
-    { name: 'nodejs', path: '/icons/nodedotjs.svg' },
-    { name: 'postgresql', path: '/icons/postgresql.svg' },
-    { name: 'superbase', path:'/icons/supabase.svg'},
-    
-    // Tools
-    { name: 'git', path: '/icons/git.svg' },
-    { name: 'github', path: '/icons/github.svg' },
-    { name: 'figma', path: '/icons/figma.svg' },
-  ];
-
-  const logoCache = {};
-  
-  const loadPromises = techLogos.map(async (tech) => {
-    try {
-      const response = await fetch(tech.path);
-      const svgText = await response.text();
-      
-      const img = new Image();
-      const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
-      const url = URL.createObjectURL(svgBlob);
-      
-      return new Promise((resolve) => {
-        img.onload = () => {
-          URL.revokeObjectURL(url);
-          logoCache[tech.name] = img;
-          resolve({ name: tech.name, loaded: true });
-        };
-        img.onerror = () => {
-          URL.revokeObjectURL(url);
-          resolve({ name: tech.name, loaded: false });
-        };
-        img.src = url;
-      });
-    } catch (error) {
-      return { name: tech.name, loaded: false };
-    }
-  });
-
-  await Promise.all(loadPromises);
-  console.log('Tech logos loaded:', Object.keys(logoCache));
-  return logoCache;
-}
-
-const techLogoCache = {};
 
 // Create 3D UI Screen using Canvas texture
 // Create 3D UI Screen using Canvas texture with improved sharpness 2048, 1024
@@ -727,7 +686,6 @@ function renderProjectDetail(ctx, width, height, project) {
 
   if (project.image) {
     const img = new Image();
-    console.log('Loading project image:', project.image);
     img.src = project.image;
 
     // When the image finishes loading, draw it and update the texture
@@ -838,17 +796,19 @@ function renderProjectDetail(ctx, width, height, project) {
   }
 }
 
-async function initializeApp() {
-  console.log('Loading custom fonts...');
-  await loadCustomFonts();
-  
-  console.log('Loading social media icons...');
-  await loadSocialIcons();
+// Modify your initializeApp function
 
-  console.log('Loading tech logos...');
-  Object.assign(techLogoCache, await loadTechLogos());
+async function initializeApp() {
+    if (window.loadingScreen) {
+        window.loadingScreen.updateProgress(5, 'Loading custom fonts...');
+    }
+    await loadCustomFonts();
+    
+    if (window.loadingScreen) {
+        window.loadingScreen.updateProgress(15, 'Loading social media icons...');
+    }
+    await loadSocialIcons();
   
-  console.log('App initialization complete');
 }
 
 // Call this instead of directly running your code
@@ -1167,7 +1127,6 @@ function handleUIClick(intersectedObject) {
 function updateUIContent(section) {
   if (!currentUIScreen) return;
   
-  console.log('Updating UI content to section:', section);
   let content = { activeNav: section };
   
   // Store current section in mesh userData
@@ -1415,7 +1374,6 @@ loader.load('models/porto-ril.glb', (glb) =>  {
   glb.scene.traverse((child) => {
     if (child.isMesh) {
       Object.keys(textureMap).forEach((key) => {
-        console.log(child.name);
         if(child.name.toLowerCase().includes(key.toLowerCase())){
           const material = new THREE.MeshBasicMaterial({
             map: loaderTexture.texture[key],
@@ -1496,10 +1454,6 @@ window.addEventListener("resize", ()=>{
 const render = () =>{
   controls.update();
   renderer.render( scene, camera );
-  // console.log(camera.position);
-  // console.log("alep llep")
-  // console.log(controls.target);
-  // Update cursor based on intersections
   updateCursor();
   
   window.requestAnimationFrame(render);
