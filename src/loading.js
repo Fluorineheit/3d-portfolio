@@ -93,6 +93,4 @@ function init() {
 init();
 
 
-window.loadingScreen = {
-    updateProgress: updateProgress
-};
+export { updateProgress, showLoadingScreen };

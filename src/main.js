@@ -2,6 +2,7 @@ import './style.scss'
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { updateProgress, showLoadingScreen } from './loading.js';
 
 const canvas = document.querySelector("#experience-canvas");
 const sizes = {
@@ -47,19 +48,12 @@ uiGroup.name = "UIGroup";
 
 const loadingManager = new THREE.LoadingManager();
 
-loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
-    const progress = (itemsLoaded / itemsTotal) * 100;
-    
-    if (window.loadingScreen) {
-        window.loadingScreen.updateProgress(progress);
-    }
+loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {  
+  updateProgress(5, "Loading 3D Assets...");
 };
 
 loadingManager.onLoad = () => {
-    // Ensure the loader finishes at 100%
-    if (window.loadingScreen) {
-        window.loadingScreen.updateProgress(100, "Ready!");
-    }
+  updateProgress(100, "All assets loaded.");
 };
 
 // loaders
@@ -799,15 +793,12 @@ function renderProjectDetail(ctx, width, height, project) {
 // Modify your initializeApp function
 
 async function initializeApp() {
-    if (window.loadingScreen) {
-        window.loadingScreen.updateProgress(5, 'Loading custom fonts...');
-    }
-    await loadCustomFonts();
-    
-    if (window.loadingScreen) {
-        window.loadingScreen.updateProgress(15, 'Loading social media icons...');
-    }
-    await loadSocialIcons();
+  updateProgress(5, "Loading custom fonts...");
+
+  await loadCustomFonts();
+
+  updateProgress(15, "Loading social media icons...");
+  await loadSocialIcons();
   
 }
 
