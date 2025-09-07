@@ -1,0 +1,50 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// experience
+
+#experience {
+  position: fixed;
+  height: 100%;
+  width: 100%;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+
+  #experience-canvas {
+    height: 100%;
+    width: 100%
+  }
+
+}
+
+@font-face {
+  font-family: 'Searider Falcon Hollow';
+  src: url('/fonts/SeariderFalcon3DHollow.ttf') format('opentype');
+}
+
+@font-face {
+  font-family: 'Searider Falcon';
+  src: url('/fonts/SeariderFalcon3D.ttf') format('opentype');
+}
+
+@font-face {
+  font-family: 'Conthrax';
+  src: url('/fonts/Conthrax-SemiBold.otf') format('opentype');
+}
+@font-face {
+  font-family: 'SeariderFalconPunch';
+  src: url('/fonts/SeariderFalconPunch.otf') format('opentype');
+}
