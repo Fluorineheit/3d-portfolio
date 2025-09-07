@@ -23,9 +23,31 @@ let currentUIScreen = null;
 let uiGroup = new THREE.Group();
 uiGroup.name = "UIGroup";
 
+// Loading Screen Logic 
+const loadingScreen = document.getElementById('loading-screen');
+const loadingBar = document.getElementById('loading-bar');
+
+const loadingManager = new THREE.LoadingManager();
+
+loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
+  const progressRatio = itemsLoaded / itemsTotal;
+  loadingBar.style.width = `${progressRatio * 100}%`;
+};
+
+loadingManager.onLoad = () => {
+  // Use a timeout to ensure the bar fills before fading
+  setTimeout(() => {
+    loadingScreen.classList.add('fade-out');
+    // Optional: remove the loading screen from the DOM after the transition
+    setTimeout(() => {
+      loadingScreen.style.display = 'none';
+    }, 1000); // Must match the transition duration in CSS
+  }, 500);
+};
+
 // loaders
-const textureLoader = new THREE.TextureLoader();
-const loader = new GLTFLoader()
+const textureLoader = new THREE.TextureLoader(loadingManager);
+const loader = new GLTFLoader(loadingManager)
 
 const textureMap = {
   Floor : {texture: '/textures/MainFloorBake.jpg'},
@@ -199,8 +221,8 @@ async function loadTechLogos() {
 const techLogoCache = {};
 
 // Create 3D UI Screen using Canvas texture
-// Create 3D UI Screen using Canvas texture with improved sharpness
-function createUITexture(width = 3746, height = 2048, content = {}) {
+// Create 3D UI Screen using Canvas texture with improved sharpness 2048, 1024
+function createUITexture(width = 2048, height = 1024, content = {}) {
   const canvas = document.createElement('canvas');
   
   // Higher resolution for sharper text
@@ -1224,12 +1246,10 @@ window.addEventListener("click", (e) => {
 // Add this near your other UI State variables
 let projectScrollY = 0;
 
-// Add this event listener anywhere in the global scope of your main.js file
-
 window.addEventListener('wheel', (event) => {
     // Only scroll if the UI is active and we're in the 'experience' section
-    if (!currentUIScreen || currentUIScreen.userData.currentSection !== 'experience') {
-        return;
+    if (!currentUIScreen || currentUIScreen.userData.currentSection !== 'experience' || currentProjectDetail) {
+      return;
     }
 
     // Update the scroll position
@@ -1418,13 +1438,13 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 
   75, 
   sizes.width / sizes.height, 
-  0.1, 
-  1000 
+  1, 
+  200 
 );
 
 camera.position.set( 24.45732511317063, 4.914951810646316, 15.36648732308515 );
 
-const renderer = new THREE.WebGLRenderer({canvas: canvas, antialias: true });
+const renderer = new THREE.WebGLRenderer({canvas: canvas, antialias: true, logarithmicDepthBuffer: true });
 renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 

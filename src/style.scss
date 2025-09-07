@@ -30,6 +30,42 @@
 
 }
 
+// loading screen
+#loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #0a121b; // Same as your UI background
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 1.0s ease-out; // For the fade-out effect
+
+  // This class will be added by JavaScript to hide the screen
+  &.fade-out {
+    opacity: 0;
+  }
+}
+
+.loading-bar-container {
+  width: 250px;
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#loading-bar {
+  width: 0%; // Starts at 0, will be updated by JavaScript
+  height: 100%;
+  background-color: #00ffff; // Your theme's cyan color
+  border-radius: 4px;
+  transition: width 0.3s ease-out;
+}
+
 @font-face {
   font-family: 'Searider Falcon Hollow';
   src: url('/fonts/SeariderFalcon3DHollow.ttf') format('opentype');
