@@ -48,8 +48,9 @@ uiGroup.name = "UIGroup";
 
 const loadingManager = new THREE.LoadingManager();
 
-loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {  
-  updateProgress(5, "Loading 3D Assets...");
+loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
+  const progress = 30 + (itemsLoaded / itemsTotal) * 70; 
+  updateProgress(progress);
 };
 
 loadingManager.onLoad = () => {
