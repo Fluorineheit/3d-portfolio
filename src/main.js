@@ -530,7 +530,7 @@ const projectsData = [
     technologies: ["Vue.js", "Node.js", "PostgreSQL", "Tailwind"],
     description: "An api management system to manage the api that is used in the Big Legal's system integrated with Express Gateaway.",
     longDescription: "The API management system developed for Big Legal's integrated system leverages Express Gateway for seamless integration and efficient management of APIs. Built with Vue.js and Quasar, it offers a dynamic and user-friendly interface, allowing administrators to easily monitor, secure, and scale APIs within the ecosystem. This system ensures smooth communication between various services while providing robust security measures and performance optimization, thus enhancing the overall functionality and reliability of the integrated platform.",
-    image: "/public/projects/api-management.webp", 
+    image: "/projects/api-management.webp", 
     liveUrl: "",
     githubUrl: "",
     features: [
