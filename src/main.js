@@ -530,8 +530,8 @@ const projectsData = [
     description: "An immersive 3D portfolio website showcasing projects through interactive environments and smooth animations.",
     longDescription: "Created an innovative portfolio website using Three.js to deliver an immersive 3D experience. Features interactive 3D environments, smooth camera animations, and dynamic UI overlays. The site showcases projects through engaging visual narratives while maintaining excellent performance and accessibility standards.",
     image: "/projects/portoweb.webp",
-    liveUrl: "https://your-portfolio.com",
-    githubUrl: "https://github.com/yourusername/portfolio",
+    liveUrl: "https://fluorineheit.netlify.app/",
+    githubUrl: "https://github.com/Fluorineheit/3d-portfolio/",
     features: [
       "Interactive 3D environments",
       "Dynamic Camera & UI Overlays",
