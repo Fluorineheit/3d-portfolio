@@ -496,8 +496,8 @@ const projectsData = [
   {
     id: 2,
     title: "Legal Reminder",
-    type: "Full-Stack Web App",
-    technologies: ["React Native", "Firebase", "Redux"],
+    type: "Frontend Web App",
+    technologies: ["Vue.js", "Quasar", "Javascript", "Cypress"],
     description: "A page to remind legal drafter about the deadline of the legal documents they are working on.",
     longDescription: "We're developing a sleek Vue-based platform using Quasar and JavaScript, tailored to remind legal drafters of impending deadlines for their documents. This project integrates seamlessly with Laravel for API modifications and employs Cypress for rigorous testing. We're organizing tasks via Trello, maintaining a clear backlog. Following the Scrum methodology, we conduct daily standups to ensure alignment and progress tracking. Our goal is to streamline the legal drafting process while enhancing accountability and efficiency.",
     image: "/projects/legal-reminder.webp",
