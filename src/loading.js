@@ -85,7 +85,6 @@ function createParticles() {
 
 // --- Initialization ---
 function init() {
-    loadingScreen.style.opacity = 1;
     createParticles();
     // startDemo(); // Call the demo to show it works
 }
