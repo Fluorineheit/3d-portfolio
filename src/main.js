@@ -2,36 +2,24 @@ import './style.scss'
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { UIManager } from './ui/UIManager.js';
+import { updateProgress, showLoadingScreen } from './loading.js';
 import { CameraController } from './camera/CameraController.js';
 import { AssetLoader } from './loaders/AssetLoader.js';
+import { EventManager } from './events/EventManager.js';
 
 const canvas = document.querySelector("#experience-canvas");
-const sizes = {
-  width: window.innerWidth,
-  height: window.innerHeight
-}
-
-const rayCaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
 
 // Store reference to clickable screen for positioning
 let clickableScreenMesh = null;
 
-// Initialize UIManager (will be set up after scene is created)
+// System managers
 let uiManager = null;
-
 let cameraController = null;
-
 let assetLoader = null;
-
+let eventManager = null;
 let iconCache = {};
 
-window.addEventListener("mousemove", (e)=>{
-  pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
-  pointer.y = - (e.clientY / window.innerHeight) * 2 + 1;
-})
-
-
+// Initialize all assets
 async function initializeApp() {
   // Initialize asset loader
   assetLoader = new AssetLoader();
@@ -48,84 +36,10 @@ async function initializeApp() {
   }
 }
 
-// Enhanced cursor detection for UI elements
-function updateCursor() {
-  rayCaster.setFromCamera(pointer, camera);
-  
-  // Get raycast targets from UIManager or use scene children
-  const raycastTargets = uiManager.isUIActive() ? 
-    uiManager.getRaycastTargets() : 
-    scene.children;
-    
-  const intersects = rayCaster.intersectObjects(raycastTargets, true);
-  
-  let isHovering = false;
-  
-  for(let i = 0; i < intersects.length; i++){
-    const intersectedObject = intersects[i].object;
-    
-    // Check for main screen
-    if(intersectedObject.name.includes("ClickableScreen_Raycaster")){
-      isHovering = true;
-      break;
-    }
-    
-    // Check for UI elements
-    if(intersectedObject.parent && intersectedObject.parent.name === "UIScreen") {
-      isHovering = true;
-      break;
-    }
-  }
-  
-  document.body.style.cursor = isHovering ? "pointer" : "default";
-}
-
-// Click event listener
-window.addEventListener("click", (e) => {
-  if (cameraController.getIsAnimating()) return;
-  
-  rayCaster.setFromCamera(pointer, camera);
-  
-  // Get raycast targets from UIManager or use scene children
-  const raycastTargets = uiManager.isUIActive() ? 
-    uiManager.getRaycastTargets() : 
-    scene.children;
-    
-  const intersects = rayCaster.intersectObjects(raycastTargets, true);
-  
-  for(let i = 0; i < intersects.length; i++){
-    const intersectedObject = intersects[i].object;
-    
-    // Check for main screen click
-    if(intersectedObject.name.includes("ClickableScreen_Raycaster")){
-      cameraController.zoomToScreen(intersectedObject); // CHANGE: use cameraController
-      uiManager.show3DUI(intersectedObject);
-      break;
-    }
-    
-    // Check for UI element clicks
-    if(intersectedObject.parent && intersectedObject.parent.name === "UIScreen") {
-      uiManager.handleUIClick(intersectedObject);
-      break;
-    }
-  }
-});
-
-// Scroll event listener
-window.addEventListener('wheel', (event) => {
-  if (uiManager.isUIActive()) {
-    const handled = uiManager.handleScroll(event);
-    if (handled) {
-      return; 
-    }
-  }
-});
-
-
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 
   75, 
-  sizes.width / sizes.height, 
+  window.innerWidth  / window.innerHeight, 
   1, 
   200 
 );
@@ -143,10 +57,18 @@ controls.enablePan = false;
 controls.update();
 controls.target.set(-1, 6, -0.18277228675437365)
 
-assetLoader = new AssetLoader()
+// Initialize all systems
+assetLoader = new AssetLoader();
 uiManager = new UIManager(scene, camera, controls);
 cameraController = new CameraController(camera, controls);
 cameraController.setupConstraints();
+eventManager = new EventManager(camera, renderer, uiManager, cameraController);
+eventManager.setScene(scene);
+
+// Set callback for when user wants to go back to scene
+uiManager.setBackToSceneCallback(() => {
+  cameraController.resetCamera();
+});
 
 assetLoader.loadModel('models/porto-ril.glb', (glb) => {
   // Store reference to clickable screen
@@ -158,36 +80,18 @@ assetLoader.loadModel('models/porto-ril.glb', (glb) => {
   
   scene.add(glb.scene);
 }, 
-null, // onProgress - handled by loading manager
+null,
 (error) => {
   console.error('Failed to load 3D model:', error);
 });
 
-// Set callback for when user wants to go back to scene
-uiManager.setBackToSceneCallback(() => {
-  cameraController.resetCamera();
-});
-
-// event listener
-window.addEventListener("resize", ()=>{
-  sizes.width = window.innerWidth;
-  sizes.height = window.innerHeight;
-
-  // update camera - now handled by cameraController
-  cameraController.onResize(sizes.width, sizes.height); // CHANGE: use cameraController
-  
-  // update renderer
-  renderer.setSize(sizes.width, sizes.height)
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2))
-})
+initializeApp();
 
 const render = () =>{
   controls.update();
   renderer.render( scene, camera );
-  updateCursor();
   
   window.requestAnimationFrame(render);
 } 
 
-initializeApp();
 render()
