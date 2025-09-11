@@ -462,7 +462,6 @@ export class UIRenderer {
       }
       const finalX = boxX + (boxWidth - finalWidth) / 2;
       const finalY = boxY + (boxHeight - finalHeight) / 2;
-      console.log(finalY)
 
       try {
         ctx.drawImage(img, finalX, finalY, finalWidth, finalHeight);

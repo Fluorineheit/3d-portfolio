@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { updateProgress } from '../loading.js';
+import { UIRenderer } from '../ui/UIRenderer.js';
 
 export class AssetLoader {
   constructor() {
@@ -9,6 +10,7 @@ export class AssetLoader {
     this.loadingManager = new THREE.LoadingManager();
     this.textureLoader = new THREE.TextureLoader(this.loadingManager);
     this.gltfLoader = new GLTFLoader(this.loadingManager);
+    this.uiRenderer = new UIRenderer()
     
     // Texture map configuration
     this.textureMap = {
@@ -208,6 +210,10 @@ export class AssetLoader {
       
       // Load social icons
       const iconCache = await this.loadSocialIcons();
+
+      // taro sini
+      updateProgress(25, "Loading project images...");
+      await this.uiRenderer.preloadProjectImages();
       
       return {
         success: true,

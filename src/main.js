@@ -31,10 +31,6 @@ async function initializeApp() {
     iconCache = assetResult.iconCache;
     // Pass icon cache to UI manager
     uiManager.setIconCache(iconCache);
-
-    updateProgress(40, "Loading project images...");
-    await uiManager.uiRenderer.preloadProjectImages()
-
   } else {
     console.error('Failed to load assets:', assetResult.error);
   }
