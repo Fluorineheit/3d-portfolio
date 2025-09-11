@@ -1,11 +1,11 @@
 import './style.scss'
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { UIManager } from './ui/UIManager.js';
 import { updateProgress, showLoadingScreen } from './loading.js';
 import { CameraController } from './camera/CameraController.js';
 import { AssetLoader } from './loaders/AssetLoader.js';
 import { EventManager } from './events/EventManager.js';
+import { UIManager } from './ui/UIManager.js';
 
 const canvas = document.querySelector("#experience-canvas");
 
@@ -30,7 +30,7 @@ async function initializeApp() {
   if (assetResult.success) {
     iconCache = assetResult.iconCache;
     // Pass icon cache to UI manager
-    uiManager.iconCache = iconCache;
+    uiManager.setIconCache(iconCache);
   } else {
     console.error('Failed to load assets:', assetResult.error);
   }
@@ -85,7 +85,6 @@ null,
   console.error('Failed to load 3D model:', error);
 });
 
-initializeApp();
 
 const render = () =>{
   controls.update();
@@ -95,3 +94,5 @@ const render = () =>{
 } 
 
 render()
+
+initializeApp();
