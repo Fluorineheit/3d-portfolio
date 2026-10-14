@@ -181,16 +181,17 @@ export class AssetLoader {
       (glb) => {
         // Apply textures to model
         glb.scene.traverse((child) => {
-          if (child.isMesh) {
-            Object.keys(this.textureMap).forEach((key) => {
-              if (child.name.toLowerCase().includes(key.toLowerCase())) {
-                const material = new THREE.MeshBasicMaterial({
-                  map: this.loadedTextures.texture[key],
-                });
-                child.material = material;
-              }
-            });
+          if (!child.isMesh) return;
+
+          // Exact name only: substring matching also hit e.g. "BAKE_Streets" and "Light_Street_1" via "tree"
+          if (this.textureMap[child.name]) {
+            child.material = new THREE.MeshBasicMaterial({ map: this.getLegacyTexture(child) });
+            return;
           }
+
+          child.material = Array.isArray(child.material)
+            ? child.material.map((m) => this.toUnlitIfBaked(m))
+            : this.toUnlitIfBaked(child.material);
         });
         
         if (onLoad) {
@@ -200,6 +201,33 @@ export class AssetLoader {
       onProgress,
       onError
     );
+  }
+
+  // Legacy bake textures read the second UV map; meshes exported without one fall back to the first
+  getLegacyTexture(mesh) {
+    const texture = this.loadedTextures.texture[mesh.name];
+    if (mesh.geometry.attributes.uv1) return texture;
+    const fallback = texture.clone();
+    fallback.channel = 0;
+    return fallback;
+  }
+
+  // Baked groups (BKD2_*) export as an Emission image. Show them unlit, exactly as baked.
+  // Plain-color materials stay lit and use the fill lights from main.js.
+  toUnlitIfBaked(material) {
+    if (!material || !material.emissiveMap || material.map) return material;
+    const unlit = new THREE.MeshBasicMaterial({
+      name: material.name,
+      map: material.emissiveMap,
+      // Emission color x strength: the lightmap's exposure dial (e.g. BKD2_Viaduct = 5),
+      // and the train's AO bake carries its body colors here (MRT_*)
+      color: material.emissive.clone().multiplyScalar(material.emissiveIntensity ?? 1),
+      transparent: material.transparent,
+      alphaTest: material.alphaTest,
+      side: material.side,
+    });
+    material.dispose();
+    return unlit;
   }
 
   // Initialize all assets
