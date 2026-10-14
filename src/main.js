@@ -86,7 +86,15 @@ assetLoader.loadModel('models/porto-ril.glb', (glb) => {
   });
   
   scene.add(glb.scene);
-}, 
+
+  // Opening shot = the CAM_Start camera from Blender, orbiting around the cafe
+  const startCamera = glb.scene.getObjectByName('CAM_Start');
+  const cafe = glb.scene.getObjectByName('Cafe_Root');
+  if (startCamera?.isCamera) {
+    const focus = cafe ? cafe.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 8, 0)) : new THREE.Vector3(0, 8, 0);
+    cameraController.setStartView(startCamera, focus);
+  }
+},
 null,
 (error) => {
   console.error('Failed to load 3D model:', error);
