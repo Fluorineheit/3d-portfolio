@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { gsap } from 'gsap';
 import { UIRenderer } from './UIRenderer.js';
 import { UIInteractions } from './UIInteractions.js';
+import { getScreenFacing } from '../camera/screenFacing.js';
 
 export class UIManager {
   constructor(scene, camera, controls) {
@@ -73,23 +74,24 @@ export class UIManager {
     return { mesh, hitboxes };
   }
 
+  // Where the UI panel goes: just in front of the screen, rotated to face the same way
+  getScreenPlacement(screenObject) {
+    const screenPosition = screenObject.getWorldPosition(new THREE.Vector3());
+    const facing = getScreenFacing(screenObject, this.camera.position);
+    const screenRotation = new THREE.Euler().setFromQuaternion(
+      new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), facing)
+    );
+    const uiPosition = screenPosition.clone().addScaledVector(facing, 0.19);
+    uiPosition.y += 0.16;
+    return { screenPosition, screenRotation, uiPosition };
+  }
+
   // Function to show 3D UI - now async
   async show3DUI(screenObject) {
     if (this.currentUIScreen) return; // UI already shown
     
-    // Get screen position and rotation
-    const screenPosition = new THREE.Vector3();
-    const screenRotation = new THREE.Euler();
-    screenObject.getWorldPosition(screenPosition);
-    screenObject.getWorldQuaternion(new THREE.Quaternion()).normalize();
-
-    const degrees = 90;
-    const radians = degrees * (Math.PI / 180);
-    screenRotation.y += radians;
-    
-    // Position UI slightly in front of the screen
-    const uiPosition = screenPosition.clone();
-    uiPosition.add(new THREE.Vector3(0.19, 0.16, 0));
+    // Get screen position, and face the UI the same way as the screen (toward the camera)
+    const { screenPosition, screenRotation, uiPosition } = this.getScreenPlacement(screenObject);
     
     try {
       // Create UI screen
@@ -125,16 +127,7 @@ export class UIManager {
 
   // Create fallback UI if main UI creation fails
   async createFallbackUI(screenObject) {
-    const screenPosition = new THREE.Vector3();
-    const screenRotation = new THREE.Euler();
-    screenObject.getWorldPosition(screenPosition);
-    
-    const degrees = 90;
-    const radians = degrees * (Math.PI / 180);
-    screenRotation.y += radians;
-    
-    const uiPosition = screenPosition.clone();
-    uiPosition.add(new THREE.Vector3(0.19, 0.16, 0));
+    const { screenRotation, uiPosition } = this.getScreenPlacement(screenObject);
     
     // Create simple fallback geometry
     const geometry = new THREE.PlaneGeometry(10.73, 5.87);
