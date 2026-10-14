@@ -46,6 +46,13 @@ const camera = new THREE.PerspectiveCamera(
 
 camera.position.set( 24.45732511317063, 4.914951810646316, 15.36648732308515 );
 
+// Fill light for the parts of the model that are not baked (plain-color materials).
+// Baked lightmaps use MeshBasicMaterial and ignore these.
+scene.add(new THREE.HemisphereLight(0xb8c4ff, 0x2a2233, 1.6));
+const moonLight = new THREE.DirectionalLight(0xdfe6ff, 1.2);
+moonLight.position.set(30, 50, 20);
+scene.add(moonLight);
+
 const renderer = new THREE.WebGLRenderer({canvas: canvas, antialias: true, logarithmicDepthBuffer: true });
 renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
