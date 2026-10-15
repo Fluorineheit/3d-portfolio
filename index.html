@@ -27,6 +27,9 @@
     <meta name="twitter:description" content="Walk around a neon night-time café in 3D and explore my projects, skills and experience." />
     <meta name="twitter:image" content="https://fluorineheit.com/og-image.png" />
     <link rel="canonical" href="https://fluorineheit.com/" />
+    <!-- Start the 3D model download with the page instead of after the JS has run (same request
+         GLTFLoader makes, so it's reused rather than downloaded twice) -->
+    <link rel="preload" href="/models/porto-ril.glb" as="fetch" type="model/gltf-binary" crossorigin />
     <!-- Intro styles load with the page (not through JS) so the sign shows on the first paint -->
     <link rel="stylesheet" href="/src/intro/intro.css" />
   </head>
