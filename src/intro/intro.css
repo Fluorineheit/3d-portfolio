@@ -14,6 +14,11 @@
   place-items: center;
   color: #d8d4e6;
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* It's a picture, not text: no selecting, no text cursor (the sign's letters are SVG text) */
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+  -webkit-touch-callout: none;
 }
 
 .intro__backdrop {
@@ -36,6 +41,7 @@
   height: auto;
   overflow: visible;
   transform-origin: center;
+  pointer-events: none;
 }
 
 /* Tubes: an unlit glass copy underneath (.neon-dead, added by JS) and the lit copy on top */

@@ -1,21 +1,13 @@
 // src/intro/Intro.js
 
-const SEEN_KEY = 'introSeen';
 const TUBE_STAGGER = 90;   // ms between tubes when progress jumps (e.g. a cached load)
 const SETTLE = 600;        // let the last tube finish flickering before offering Enter
 const FLIGHT = 1300;       // sign flies into its place on the cafe
 
-function readSeen() {
-  try { return localStorage.getItem(SEEN_KEY) === '1'; } catch { return false; }
-}
-function saveSeen() {
-  try { localStorage.setItem(SEEN_KEY, '1'); } catch { /* storage blocked: Enter shows again next time */ }
-}
-
 /**
  * The neon-sign intro (markup in index.html, styles in intro.css). Its tubes light up with the real
- * loading progress; when the scene is ready it offers Enter (first visit) or goes straight in, then
- * flies the sign onto the real one on the cafe while the overlay fades out.
+ * loading progress; when the scene is ready it offers Enter (every visit, so it always behaves the
+ * same), then flies the sign onto the real one on the cafe while the overlay fades out.
  */
 export class Intro {
   constructor(root = document.getElementById('intro')) {
@@ -82,11 +74,6 @@ export class Intro {
   becomeReady() {
     if (this.state !== 'settling') return;
     this.state = 'ready';
-    // Returning visitors go straight in; the first visit gets the Enter moment
-    if (readSeen()) {
-      this.enter();
-      return;
-    }
     this.root.classList.add('is-ready');
     this.button.focus({ preventScroll: true });
   }
@@ -94,7 +81,6 @@ export class Intro {
   enter() {
     if (this.state !== 'ready') return;
     this.state = 'leaving';
-    saveSeen();
     window.removeEventListener('keydown', this.onKey);
     this.root.classList.add('is-leaving');
 
