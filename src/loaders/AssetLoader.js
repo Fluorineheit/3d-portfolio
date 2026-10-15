@@ -41,12 +41,6 @@ export class AssetLoader {
         url: './fonts/Conthrax-SemiBold.otf',
         weight: 'normal',
         style: 'normal'
-      },
-      {
-        name: 'SeariderFalconPunch',
-        url: './fonts/SeariderFalconPunch.otf',
-        weight: 'normal',
-        style: 'normal'
       }
     ];
     
@@ -97,7 +91,8 @@ export class AssetLoader {
         this.fonts.map(fontConfig => {
           const font = new FontFace(fontConfig.name, `url(${fontConfig.url})`, {
             weight: fontConfig.weight,
-            style: fontConfig.style
+            style: fontConfig.style,
+            display: 'swap'
           });
           return font.load();
         })

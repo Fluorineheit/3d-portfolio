@@ -27,23 +27,9 @@ let uiManager = null;
 let cameraController = null;
 let assetLoader = null;
 let eventManager = null;
-let iconCache = {};
-
-// Initialize all assets
-async function initializeApp() {
-  // Initialize asset loader
-  assetLoader = new AssetLoader();
-  
-  // Load all assets
-  const assetResult = await assetLoader.initializeAssets();
-  
-  if (assetResult.success) {
-    iconCache = assetResult.iconCache;
-    // Pass icon cache to UI manager
-    uiManager.setIconCache(iconCache);
-  } else {
-    console.error('Failed to load assets:', assetResult.error);
-  }
+// Fonts the About / Credits boards draw with (they redraw once these are ready)
+function initializeApp() {
+  assetLoader.loadCustomFonts();
 }
 
 const scene = new THREE.Scene();
@@ -145,6 +131,7 @@ assetLoader.loadModel('models/porto-ril.glb', async (glb) => {
   const sign = ['BAKE_Cafe1F_Live_4', 'BAKE_Cafe1F_Live_5'].map((name) => glb.scene.getObjectByName(name)).filter(Boolean);
   const reveal = new LightsReveal(glb.scene, [fillLight, moonLight], sign);
   reveal.dark();
+  await uploadTextures(scene);
   await renderer.compileAsync(scene, camera).catch(() => {});
   renderer.render(scene, camera);
 
@@ -159,6 +146,31 @@ assetLoader.loadModel('models/porto-ril.glb', async (glb) => {
   console.error('Failed to load 3D model:', error);
   intro.fail('Could not load the scene. Please refresh.');
 });
+
+// Send every texture to the GPU one at a time, letting the page breathe in between. Otherwise they
+// all upload inside the first render: one multi-second task on slow / GPU-less machines.
+async function uploadTextures(root) {
+  const textures = new Set();
+  root.traverse((object) => {
+    const materials = Array.isArray(object.material) ? object.material : object.material ? [object.material] : [];
+    for (const material of materials) for (const value of Object.values(material)) if (value?.isTexture) textures.add(value);
+  });
+  for (const texture of textures) {
+    renderer.initTexture(texture);
+    await yieldToMain();
+  }
+}
+
+// Let the browser handle input / paint before continuing. Not setTimeout: background tabs throttle it
+// to once a second, which would stall the load for anyone who switched tabs.
+function yieldToMain() {
+  if (globalThis.scheduler?.yield) return globalThis.scheduler.yield();
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => resolve();
+    channel.port2.postMessage(null);
+  });
+}
 
 // Where a flat object (like the sign) appears on screen (CSS px), or null if it's missing or behind
 // the camera. Only its face counts: the box is flattened along its thinnest side, so the sign's depth

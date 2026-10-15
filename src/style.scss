@@ -29,24 +29,8 @@
 
 }
 
-@font-face {
-  font-family: 'Searider Falcon Hollow';
-  src: url('/fonts/SeariderFalcon3DHollow.ttf') format('opentype');
-}
+// Fonts for the in-scene boards (Conthrax, Searider Falcon) are loaded by AssetLoader.loadCustomFonts
 
-@font-face {
-  font-family: 'Searider Falcon';
-  src: url('/fonts/SeariderFalcon3D.ttf') format('opentype');
-}
-
-@font-face {
-  font-family: 'Conthrax';
-  src: url('/fonts/Conthrax-SemiBold.otf') format('opentype');
-}
-@font-face {
-  font-family: 'SeariderFalconPunch';
-  src: url('/fonts/SeariderFalconPunch.otf') format('opentype');
-}
 
 // View helpers (src/ui/ViewControls.js): "how to move" hint + Reset view / ? buttons
 $glass: rgba(12, 10, 24, 0.72);
