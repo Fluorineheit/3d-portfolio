@@ -46,7 +46,7 @@ export class CameraController {
     this.homeLimits = {
       minDistance: distance * 0.35,
       maxDistance: Math.min(distance * 1.15, groundLimit),
-      maxPolarAngle: polar + 0.005,
+      maxPolarAngle: polar - 0.005,
     };
     Object.assign(this.controls, this.homeLimits);
 
@@ -77,15 +77,26 @@ export class CameraController {
     const facing = getScreenFacing(screenObject, this.camera.position);
     this.uiCameraPosition.copy(screenPosition).addScaledVector(facing, this.screenDistance);
 
+    this.isAnimating = false; // flyTo takes over from here
+    this.flyTo(this.uiCameraPosition, screenPosition, onComplete);
+  }
+
+  // Fly to a fixed shot and hold it: no orbiting, zoom only a little around the arrival distance
+  flyTo(position, target, onComplete = null, { minZoom = 0.8, maxZoom = 1.4 } = {}) {
+    if (this.isAnimating) return;
+    this.isAnimating = true;
+
     this.controls.minDistance = 0;
     this.controls.maxDistance = Infinity;
     this.controls.maxPolarAngle = Math.PI; // free while flying; limits are restored on arrival
-    
+
     // Animation parameters
     const startPosition = this.camera.position.clone();
     const startTarget = this.controls.target.clone();
-    const endTarget = screenPosition.clone();
-    
+    const endPosition = position.clone();
+    const endTarget = target.clone();
+    const arrival = endPosition.distanceTo(endTarget);
+
     let progress = 0;
     const duration = 1500; // 1.5 seconds
     const startTime = Date.now();
@@ -98,7 +109,7 @@ export class CameraController {
       const eased = progress * progress * (3 - 2 * progress);
       
       // Interpolate camera position
-      this.camera.position.lerpVectors(startPosition, this.uiCameraPosition, eased);
+      this.camera.position.lerpVectors(startPosition, endPosition, eased);
       
       // Interpolate controls target
       this.controls.target.lerpVectors(startTarget, endTarget, eased);
@@ -115,8 +126,8 @@ export class CameraController {
         // LOCK camera movement, allow zoom only
         this.controls.enableRotate = false;
         this.controls.enableZoom = true;
-        this.controls.minDistance = this.screenDistance * 0.8;
-        this.controls.maxDistance = this.screenDistance * 1.4;
+        this.controls.minDistance = arrival * minZoom;
+        this.controls.maxDistance = arrival * maxZoom;
         
         // Call completion callback if provided
         if (onComplete) {

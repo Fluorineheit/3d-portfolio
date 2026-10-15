@@ -6,6 +6,11 @@ import { CameraController } from './camera/CameraController.js';
 import { AssetLoader } from './loaders/AssetLoader.js';
 import { EventManager } from './events/EventManager.js';
 import { UIManager } from './ui/UIManager.js';
+import { MenuController } from './ui/MenuController.js';
+import { TrainLoop } from './scene/TrainLoop.js';
+
+let trainLoop = null;
+const clock = new THREE.Clock();
 
 const canvas = document.querySelector("#experience-canvas");
 
@@ -53,7 +58,9 @@ const moonLight = new THREE.DirectionalLight(0xdfe6ff, 1.2);
 moonLight.position.set(30, 50, 20);
 scene.add(moonLight);
 
-const renderer = new THREE.WebGLRenderer({canvas: canvas, antialias: true, logarithmicDepthBuffer: true });
+// No logarithmic depth buffer: the scene is small (near 1 / far 200) and it disables early depth
+// testing on every pixel, which made the whole scene (and the moving train) noticeably slower.
+const renderer = new THREE.WebGLRenderer({canvas: canvas, antialias: true });
 renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
@@ -72,7 +79,9 @@ cameraController.setupConstraints();
 eventManager = new EventManager(camera, renderer, uiManager, cameraController);
 eventManager.setScene(scene);
 
-// Set callback for when user wants to go back to scene
+// Menu board on the plaza (BTN_* objects in the model) -> About / Projects / Credits
+const menuController = new MenuController({ camera, cameraController, uiManager, renderer });
+eventManager.setMenuController(menuController);// Set callback for when user wants to go back to scene
 uiManager.setBackToSceneCallback(() => {
   cameraController.resetCamera();
 });
@@ -86,6 +95,12 @@ assetLoader.loadModel('models/porto-ril.glb', (glb) => {
   });
   
   scene.add(glb.scene);
+  menuController.setScene(glb.scene);
+
+  // The train drives along the viaduct and loops
+  const train = glb.scene.getObjectByName('Train_Root');
+  const viaduct = glb.scene.getObjectByName('BAKE_Viaduct');
+  if (train && viaduct) trainLoop = new TrainLoop(train, viaduct, renderer);
 
   // Opening shot = the CAM_Start camera from Blender, orbiting around the cafe
   const startCamera = glb.scene.getObjectByName('CAM_Start');
@@ -101,9 +116,21 @@ null,
 });
 
 
+// Wheel zoom is applied inside OrbitControls' own event handler, not in update(), so listen for it
+let viewChanged = false;
+controls.addEventListener('change', () => { viewChanged = true; });
+
 const render = () =>{
-  controls.update();
-  renderer.render( scene, camera );
+  // Cap the step so a background tab doesn't make the train jump on return
+  trainLoop?.update(Math.min(clock.getDelta(), 0.1));
+  const cameraMoved = controls.update() || viewChanged;
+  viewChanged = false;
+
+  // With About/Credits open the view is still: only redraw when the camera moves or the
+  // surface/pixel ratio changed, so the sharper (supersampled) view costs nothing while idle.
+  const idle = menuController.isInSection() && !cameraController.getIsAnimating();
+  const dirty = menuController.takeDirty();
+  if (!idle || cameraMoved || dirty) renderer.render( scene, camera );
   
   window.requestAnimationFrame(render);
 } 

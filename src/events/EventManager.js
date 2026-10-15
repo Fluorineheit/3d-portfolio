@@ -40,7 +40,12 @@ export class EventManager {
   setupEventListeners() {
     // Mouse movement for cursor updates and pointer tracking
     window.addEventListener("mousemove", this.onMouseMove);
-    
+
+    // Remember where a press started, so a drag that ends on something is not a click
+    window.addEventListener("pointerdown", (event) => {
+      this.downAt = { x: event.clientX, y: event.clientY };
+    });
+
     // Click events for interactions
     window.addEventListener("click", this.onClick);
     
@@ -54,24 +59,70 @@ export class EventManager {
   // Handle mouse movement
   onMouseMove(event) {
     // Update pointer coordinates for raycasting
+    this.setPointer(event);
+
+    // Over HTML (panels, links): no 3D hover
+    if (event.target !== this.renderer.domElement) {
+      this.menuController?.hover(null);
+      return;
+    }
+
+    // Update cursor based on what's under the mouse, at most once per frame: mousemove can fire
+    // several times per frame and each check raycasts the whole scene
+    if (this.cursorQueued) return;
+    this.cursorQueued = true;
+    requestAnimationFrame(() => {
+      this.cursorQueued = false;
+      this.updateCursor();
+    });
+  }
+
+  setPointer(event) {
     this.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
     this.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
-    
-    // Update cursor based on what's under the mouse
-    this.updateCursor();
+  }
+
+  setMenuController(menuController) {
+    this.menuController = menuController;
   }
 
   // Handle click events
   onClick(event) {
+    // Only clicks on the 3D canvas (not on HTML panels or links)
+    if (event.target !== this.renderer.domElement) return;
+
+    // A drag that happens to end on something is an orbit, not a click
+    if (this.downAt && Math.hypot(event.clientX - this.downAt.x, event.clientY - this.downAt.y) > 6) return;
+
     // Don't handle clicks during camera animation
     if (this.cameraController.getIsAnimating()) return;
-    
+
+    // Use the click's own position (a touch tap has no mousemove before it)
+    this.setPointer(event);
     this.rayCaster.setFromCamera(this.pointer, this.camera);
-    
+
     // Get appropriate raycast targets
     const raycastTargets = this.getRaycastTargets();
     const intersects = this.rayCaster.intersectObjects(raycastTargets, true);
-    
+
+    // In the scene, only the nearest object counts (not things hidden behind it)
+    if (!this.uiManager.isUIActive()) {
+      // About / Credits open: their drawn Back and links, or anywhere else to go back
+      if (this.menuController?.isInSection()) {
+        this.menuController.handleSectionClick(intersects[0]);
+        return;
+      }
+      const hit = intersects[0]?.object;
+      if (!hit) return;
+      const button = this.menuController?.buttonFor(hit);
+      if (button) {
+        this.menuController.open(button);
+      } else if (hit.name.includes("ClickableScreen_Raycaster") && this.menuController?.isAtPlaza() !== false) {
+        this.handleScreenClick(hit);
+      }
+      return;
+    }
+
     // Process intersections
     for (let i = 0; i < intersects.length; i++) {
       const intersectedObject = intersects[i].object;
@@ -114,6 +165,7 @@ export class EventManager {
     // Update renderer
     this.renderer.setSize(this.sizes.width, this.sizes.height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    if (this.menuController?.isInSection()) this.menuController.setSharp(true);
   }
 
   // Handle main screen clicks (zoom to UI)
@@ -147,16 +199,26 @@ export class EventManager {
     const intersects = this.rayCaster.intersectObjects(raycastTargets, true);
     
     let isHovering = false;
-    
+
+    // In the scene, only the nearest object counts: menu board buttons glow, the screen is clickable
+    if (!this.uiManager.isUIActive()) {
+      if (this.menuController?.isInSection()) {
+        isHovering = this.menuController.hoverSection(intersects[0]);
+        document.body.style.cursor = isHovering ? "pointer" : "default";
+        return;
+      }
+      const hit = intersects[0]?.object;
+      const atPlaza = this.menuController?.isAtPlaza() !== false;
+      const button = hit && atPlaza ? this.menuController?.buttonFor(hit) : null;
+      this.menuController?.hover(button);
+      isHovering = Boolean(button) || Boolean(atPlaza && hit?.name.includes("ClickableScreen_Raycaster"));
+      document.body.style.cursor = isHovering ? "pointer" : "default";
+      return;
+    }
+
     for (let i = 0; i < intersects.length; i++) {
       const intersectedObject = intersects[i].object;
-      
-      // Check for main screen
-      if (intersectedObject.name.includes("ClickableScreen_Raycaster")) {
-        isHovering = true;
-        break;
-      }
-      
+
       // Check for UI elements
       if (intersectedObject.parent && intersectedObject.parent.name === "UIScreen") {
         isHovering = true;
