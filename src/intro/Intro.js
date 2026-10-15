@@ -61,11 +61,12 @@ export class Intro {
 
   /**
    * The scene is loaded and rendered behind the overlay.
-   * signRect(): the real sign's rectangle on screen (CSS px) or null; onReveal(): start the scene's
-   * own reveal (called as the overlay starts to fade).
+   * signRect(): the real sign's rectangle on screen (CSS px) or null; onEnter(): Enter was clicked
+   * (the scene should start rendering); onReveal(): start the scene's own reveal (called as the
+   * overlay starts to fade).
    */
-  ready({ signRect, onReveal }) {
-    this.handlers = { signRect, onReveal };
+  ready({ signRect, onEnter, onReveal }) {
+    this.handlers = { signRect, onEnter, onReveal };
     this.state = 'settling';
     this.setProgress(1);
     if (!this.timer && this.lit >= this.tubes.length) setTimeout(() => this.becomeReady(), SETTLE);
@@ -83,6 +84,7 @@ export class Intro {
     this.state = 'leaving';
     window.removeEventListener('keydown', this.onKey);
     this.root.classList.add('is-leaving');
+    this.handlers.onEnter?.();
 
     const target = this.handlers.signRect?.();
     const from = this.sign.getBoundingClientRect();

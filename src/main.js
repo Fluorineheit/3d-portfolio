@@ -150,6 +150,7 @@ assetLoader.loadModel('models/porto-ril.glb', async (glb) => {
 
   intro.ready({
     signRect: () => screenRect(sign),
+    onEnter: startRendering,
     onReveal: () => reveal.play(() => window.dispatchEvent(new Event('loading-done'))),
   });
 },
@@ -192,6 +193,21 @@ window.addEventListener('loading-done', () => viewControls.show(), { once: true 
 let viewChanged = false;
 controls.addEventListener('change', () => { viewChanged = true; });
 
+// Nothing is drawn until the visitor clicks Enter: the scene sits behind the intro (one frame is drawn
+// when it's ready), so the page goes quiet on the Enter screen instead of rendering 60 fps under a black
+// overlay. Saves battery, and lets page-speed tools (no GPU, software WebGL) finish their run.
+let rendering = false;
+function startRendering() {
+  if (rendering) return;
+  rendering = true;
+  clock.getDelta();   // don't count the time spent on the intro as one long frame
+  window.requestAnimationFrame(render);
+}
+// A resize clears the canvas: redraw the waiting frame so it isn't blank when the intro fades
+window.addEventListener('resize', () => {
+  if (!rendering) renderer.render(scene, camera);
+});
+
 const render = () =>{
   // Cap the step so a background tab doesn't make the train jump on return
   const dt = Math.min(clock.getDelta(), 0.1);
@@ -211,7 +227,5 @@ const render = () =>{
   
   window.requestAnimationFrame(render);
 } 
-
-render()
 
 initializeApp();
