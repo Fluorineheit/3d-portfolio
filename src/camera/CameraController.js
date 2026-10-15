@@ -15,6 +15,12 @@ export class CameraController {
     this.originalCameraPosition = new THREE.Vector3(25.688755018841892, 4.3063773636979565, 15.100411821420774);
     this.originalTarget = new THREE.Vector3(0.17666347376958655, 7.040941209607237, 1.8224583297318953);
     this.homeLimits = { minDistance: 20, maxDistance: 45, maxPolarAngle: 1.7 };
+    // Area the orbit pivot may be panned over (ground plane, THREE.Box3); set from the map in main.js.
+    // Without it, the pivot stays within panRadius of the home pivot.
+    this.panBounds = null;
+    // Area the camera itself must stay over while panning (it trails the pivot by the orbit distance)
+    this.cameraBounds = null;
+    this.panRadius = 16;
 
     // UI camera position for zoomed view (computed from the screen in zoomToScreen)
     this.uiCameraPosition = new THREE.Vector3();
@@ -48,11 +54,15 @@ export class CameraController {
       maxDistance: Math.min(distance * 1.15, groundLimit),
       maxPolarAngle: polar - 0.005,
     };
+    this.hasStartView = true;
     Object.assign(this.controls, this.homeLimits);
 
     this.camera.position.copy(position);
     this.controls.target.copy(target);
     this.controls.update();
+    // The limits above may nudge the camera (e.g. a tilt limit just inside the shot). Use the pose the
+    // controls actually settled on as "home", so returning there doesn't snap at the end of the flight.
+    this.originalCameraPosition.copy(this.camera.position);
   }
 
   // Distance at which the 3D UI panel (10.73 x 5.87) fits the view with some margin
@@ -85,10 +95,12 @@ export class CameraController {
   flyTo(position, target, onComplete = null, { minZoom = 0.8, maxZoom = 1.4 } = {}) {
     if (this.isAnimating) return;
     this.isAnimating = true;
+    this.stopGlide();
 
     this.controls.minDistance = 0;
     this.controls.maxDistance = Infinity;
     this.controls.maxPolarAngle = Math.PI; // free while flying; limits are restored on arrival
+    this.controls.enablePan = false;
 
     // Animation parameters
     const startPosition = this.camera.position.clone();
@@ -144,6 +156,11 @@ export class CameraController {
     if (this.isAnimating) return;
     
     this.isAnimating = true;
+    this.stopGlide();
+    // No input during the flight (it would add new glide); re-enabled on arrival
+    this.controls.enableRotate = false;
+    this.controls.enableZoom = false;
+    this.controls.enablePan = false;
     
     const startPosition = this.camera.position.clone();
     const startTarget = this.controls.target.clone();
@@ -174,6 +191,7 @@ export class CameraController {
 
         this.controls.enableRotate = true;
         this.controls.enableZoom = true;
+        this.controls.enablePan = true;
         Object.assign(this.controls, this.homeLimits);
         
         // Call completion callback if provided
@@ -186,12 +204,86 @@ export class CameraController {
     animateReset();
   }
 
-  // Setup camera constraints and limits
-  // Orbit limits. Panning is off, so the pivot only moves through zoomToScreen/resetCamera;
-  // distances and tilt come from the opening shot (setStartView).
+  // Orbit limits: distances and tilt come from the opening shot (setStartView). Panning slides the
+  // pivot along the ground (not up/down), and clampPan keeps it near the home pivot.
   setupConstraints() {
     this.controls.minPolarAngle = 0;
+    this.controls.screenSpacePanning = false;
     Object.assign(this.controls, this.homeLimits);
+  }
+
+  /**
+   * Keep the panned pivot over the map (panBounds, or within panRadius of the home pivot) and at the
+   * home pivot's height. The camera moves with it, so hitting the edge just stops the pan instead of
+   * turning the view.
+   * Returns true when it had to move the camera.
+   */
+  clampPan() {
+    // Only at the home view (sections turn panning off) and once the opening shot set the home pivot
+    if (this.isAnimating || !this.controls.enablePan || !this.hasStartView) return false;
+    const target = this.controls.target;
+    const allowed = new THREE.Vector3(target.x, this.originalTarget.y, target.z);
+    if (this.panBounds) {
+      allowed.x = THREE.MathUtils.clamp(allowed.x, this.panBounds.min.x, this.panBounds.max.x);
+      allowed.z = THREE.MathUtils.clamp(allowed.z, this.panBounds.min.z, this.panBounds.max.z);
+    } else {
+      const dx = allowed.x - this.originalTarget.x;
+      const dz = allowed.z - this.originalTarget.z;
+      const d = Math.hypot(dx, dz);
+      if (d > this.panRadius) {
+        allowed.x = this.originalTarget.x + (dx * this.panRadius) / d;
+        allowed.z = this.originalTarget.z + (dz * this.panRadius) / d;
+      }
+    }
+    // The camera trails the pivot: if it would leave its area, hold the whole rig back
+    if (this.cameraBounds) {
+      const { min, max } = this.cameraBounds;
+      const cx = this.camera.position.x + (allowed.x - target.x);
+      const cz = this.camera.position.z + (allowed.z - target.z);
+      allowed.x += THREE.MathUtils.clamp(cx, min.x, max.x) - cx;
+      allowed.z += THREE.MathUtils.clamp(cz, min.z, max.z) - cz;
+    }
+    let moved = false;
+    if (allowed.distanceToSquared(target) > 1e-8) {
+      const shift = allowed.sub(target);
+      target.add(shift);
+      this.camera.position.add(shift);
+      moved = true;
+    }
+
+    return this.keepCameraOutside() || moved;
+  }
+
+  // Buildings the camera must not enter (THREE.Box3 in world space)
+  setObstacles(obstacles) {
+    this.obstacles = obstacles;
+  }
+
+  // Panned and zoomed in, the camera could end up inside a building: push it back out through the
+  // nearest side (or the roof). Returns true when it moved the camera.
+  keepCameraOutside() {
+    const p = this.camera.position;
+    let moved = false;
+    for (const box of this.obstacles ?? []) {
+      if (!box.containsPoint(p)) continue;
+      const exits = [
+        ['x', box.min.x, p.x - box.min.x], ['x', box.max.x, box.max.x - p.x],
+        ['z', box.min.z, p.z - box.min.z], ['z', box.max.z, box.max.z - p.z],
+        ['y', box.max.y, box.max.y - p.y],
+      ];
+      const [axis, value] = exits.reduce((a, b) => (b[2] < a[2] ? b : a));
+      p[axis] = value;
+      moved = true;
+    }
+    return moved;
+  }
+
+  // Drop the leftover glide from a drag (damping), so it doesn't keep turning the camera after a flight.
+  // OrbitControls keeps it in private fields (three r179).
+  stopGlide() {
+    this.controls._sphericalDelta?.set(0, 0, 0);
+    this.controls._panOffset?.set(0, 0, 0);
+    if ('_scale' in this.controls) this.controls._scale = 1;
   }
 
   // Check if camera is currently animating

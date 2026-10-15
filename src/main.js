@@ -8,6 +8,7 @@ import { EventManager } from './events/EventManager.js';
 import { UIManager } from './ui/UIManager.js';
 import { MenuController } from './ui/MenuController.js';
 import { TrainLoop } from './scene/TrainLoop.js';
+import { ViewControls } from './ui/ViewControls.js';
 
 let trainLoop = null;
 const clock = new THREE.Clock();
@@ -67,7 +68,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 const controls = new OrbitControls( camera, renderer.domElement );
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
-controls.enablePan = false;
+controls.enablePan = true;
 controls.update();
 controls.target.set(-1, 6, -0.18277228675437365)
 
@@ -80,8 +81,12 @@ eventManager = new EventManager(camera, renderer, uiManager, cameraController);
 eventManager.setScene(scene);
 
 // Menu board on the plaza (BTN_* objects in the model) -> About / Projects / Credits
-const menuController = new MenuController({ camera, cameraController, uiManager, renderer });
-eventManager.setMenuController(menuController);// Set callback for when user wants to go back to scene
+const menuController = new MenuController({
+  camera, cameraController, uiManager, renderer,
+  renderNow: () => renderer.render(scene, camera),
+});
+eventManager.setMenuController(menuController);
+// Set callback for when user wants to go back to scene
 uiManager.setBackToSceneCallback(() => {
   cameraController.resetCamera();
 });
@@ -102,6 +107,24 @@ assetLoader.loadModel('models/porto-ril.glb', (glb) => {
   const viaduct = glb.scene.getObjectByName('BAKE_Viaduct');
   if (train && viaduct) trainLoop = new TrainLoop(train, viaduct, renderer);
 
+  // Panning stays over the map: the pivot stops PAN_MARGIN short of the street area's edge, and the
+  // camera (which trails it) no further than CAMERA_MARGIN past it, so the empty void stays out of view
+  const PAN_MARGIN = 20;
+  const CAMERA_MARGIN = 16;
+  const streets = glb.scene.getObjectByName('BAKE_Streets');
+  if (streets) {
+    const map = new THREE.Box3().setFromObject(streets);
+    cameraController.panBounds = map.clone().expandByScalar(-PAN_MARGIN);
+    cameraController.cameraBounds = map.clone().expandByScalar(CAMERA_MARGIN);
+  }
+
+  // Panning and zooming keep the camera out of the buildings
+  const obstacles = ['Cafe_Root', 'BAKE_Parking']
+    .map((name) => glb.scene.getObjectByName(name))
+    .filter(Boolean)
+    .map((object) => new THREE.Box3().setFromObject(object).expandByScalar(1.5));
+  cameraController.setObstacles(obstacles);
+
   // Opening shot = the CAM_Start camera from Blender, orbiting around the cafe
   const startCamera = glb.scene.getObjectByName('CAM_Start');
   const cafe = glb.scene.getObjectByName('Cafe_Root');
@@ -116,14 +139,23 @@ null,
 });
 
 
+// "How to move" hint (closable, ? brings it back) and a Reset view button, once loading is done
+const viewControls = new ViewControls({ cameraController, menuController, controls });
+window.addEventListener('loading-done', () => viewControls.show(), { once: true });
+
 // Wheel zoom is applied inside OrbitControls' own event handler, not in update(), so listen for it
 let viewChanged = false;
 controls.addEventListener('change', () => { viewChanged = true; });
 
 const render = () =>{
   // Cap the step so a background tab doesn't make the train jump on return
-  trainLoop?.update(Math.min(clock.getDelta(), 0.1));
-  const cameraMoved = controls.update() || viewChanged;
+  const dt = Math.min(clock.getDelta(), 0.1);
+  trainLoop?.update(dt);
+  menuController.update(dt);
+  viewControls.update();
+  const orbited = controls.update();
+  const clamped = cameraController.clampPan();   // keep panning inside the plaza
+  const cameraMoved = orbited || clamped || viewChanged;
   viewChanged = false;
 
   // With About/Credits open the view is still: only redraw when the camera moves or the

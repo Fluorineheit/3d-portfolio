@@ -38,6 +38,7 @@ export const projectsData = [
     title: "Knowledge Management System",
     type: "Full-stack Web App",
     technologies: ["React", "NextJS", "Supabase", "Express Gateaway"],
+    description: "A knowledge management system with a NextJS and Supabase back-end, secured API access and a chat bot for interactive support.",
     longDescription: "I contributed across the full stack by pair-programming a robust NextJS and Supabase back-end and securing it with an API management system using Express Gateway that featured access control and rate-limiting. For the user interface, I developed an engaging chat bot with the Quasar framework to provide interactive support.",
     image: "/projects/kms.webp",
     features: [
