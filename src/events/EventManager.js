@@ -170,6 +170,11 @@ export class EventManager {
 
   // Handle main screen clicks (zoom to UI)
   handleScreenClick(screenObject) {
+    // The videotron is the Projects screen: same flow as the menu board's PROJECTS button
+    if (this.menuController) {
+      this.menuController.open('BTN_Projects');
+      return;
+    }
     this.cameraController.zoomToScreen(screenObject);
     this.uiManager.show3DUI(screenObject);
   }

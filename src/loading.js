@@ -50,6 +50,7 @@ function hideLoadingScreen() {
     loadingScreen.classList.add('fade-out');
     setTimeout(() => {
         loadingScreen.style.display = 'none';
+        window.dispatchEvent(new Event('loading-done'));
     }, 500);
 }
 

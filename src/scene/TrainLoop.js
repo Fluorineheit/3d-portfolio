@@ -8,7 +8,7 @@ export class TrainLoop {
    * root: Train_Root (the cars are its children)
    * track: the viaduct object; the train runs along its X extent
    */
-  constructor(root, track, renderer, { speed = 14, direction = 1, pause = 4 } = {}) {
+  constructor(root, track, renderer, { speed = 40, direction = 1, pause = 1 } = {}) {
     this.root = root;
     this.speed = speed;          // scene units per second (~3.2 units = 1 m)
     this.direction = direction;  // +1 = toward +X, -1 = toward -X

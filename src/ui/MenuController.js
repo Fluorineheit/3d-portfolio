@@ -6,6 +6,8 @@ import * as THREE from 'three';
 import { frameObjects } from '../camera/framing.js';
 import { SurfaceDisplay } from './SurfaceDisplay.js';
 import { drawAboutNote, drawCredits } from './surfaceDesigns.js';
+import { ProjectsScreen } from './ProjectsScreen.js';
+import { prepareFlatSurface } from './flatSurface.js';
 
 // Button object name (as in Blender) -> section
 const ACTIONS = {
@@ -17,11 +19,12 @@ const HOVER_GLOW = 0.45;    // plate tint strength on hover
 const HOVER_SCALE = 1.06;
 
 export class MenuController {
-  constructor({ camera, cameraController, uiManager, renderer }) {
+  constructor({ camera, cameraController, uiManager, renderer, renderNow }) {
     this.camera = camera;
     this.cameraController = cameraController;
     this.uiManager = uiManager;
     this.renderer = renderer;
+    this.renderNow = renderNow;
 
     this.buttons = new Map();   // name -> { object, glow }
     this.screen = null;
@@ -31,6 +34,19 @@ export class MenuController {
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') this.back();
+      if (this.active === 'projects' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        this.surfaces.projects.click(e.key === 'ArrowLeft' ? 'prev' : 'next');
+      }
+    });
+
+    // Swipe left/right on the projects screen (phones)
+    let swipe = null;
+    window.addEventListener('pointerdown', (e) => { swipe = { x: e.clientX, y: e.clientY }; });
+    window.addEventListener('pointerup', (e) => {
+      if (!swipe || this.active !== 'projects' || this.cameraController.getIsAnimating()) return;
+      const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+      swipe = null;
+      if (Math.abs(dx) > 60 && Math.abs(dy) < 50) this.surfaces.projects.click(dx < 0 ? 'next' : 'prev');
     });
   }
 
@@ -47,6 +63,13 @@ export class MenuController {
     // (scale = render resolution; the note is seen up close, so it gets more pixels)
     if (note) this.surfaces.about = new SurfaceDisplay(note, { width: 1024, height: 724, draw: drawAboutNote, scale: 2 });
     if (credits) this.surfaces.credits = new SurfaceDisplay(credits, { width: 2048, height: 1368, draw: drawCredits, scale: 1.5 });
+    // The videotron: its exported UVs are collapsed, so give it a clean layout first
+    if (this.screen) this.surfaces.projects = new ProjectsScreen(this.screen, prepareFlatSurface(this.screen, this.camera.position));
+  }
+
+  // Per-frame: ticker scroll, slideshow, clock
+  update(dt) {
+    this.surfaces.projects?.update(dt);
   }
 
   // Hover = the dark plate lights up in the button's own label color and the button pops out a little.
@@ -101,24 +124,22 @@ export class MenuController {
     if (!section || !this.isAtPlaza()) return;
     this.hover(null);
 
-    if (section === 'projects') {
-      if (!this.screen) return;
-      this.cameraController.zoomToScreen(this.screen);
-      this.uiManager.show3DUI(this.screen).then(() => this.uiManager.updateUIContent('experience'));
-      return;
-    }
-
     const surface = this.surfaces[section];
     if (!surface) {
       console.warn(`MenuController: no surface for "${section}"`);
       return;
     }
     this.active = section;
-    const { position, target } = frameObjects([surface.mesh], this.camera, this.camera.position, {
-      margin: section === 'about' ? 1.6 : 1.12,
-    });
+    const margin = { about: 1.6, credits: 1.12, projects: 1.06 }[section];
+    const { position, target } = frameObjects([surface.mesh], this.camera, this.camera.position, { margin });
     // About keeps the default zoom range tight so the note stays framed; other sections use the default
     const zoom = section === 'about' ? { minZoom: 0.9, maxZoom: 1.1 } : undefined;
+    if (section === 'projects') {
+      // The projects screen animates (ticker), so it keeps normal resolution and redraws every frame
+      surface.setFocused(true);
+      this.cameraController.flyTo(position, target, null, zoom);
+      return;
+    }
     this.cameraController.flyTo(position, target, () => this.setSharp(true), zoom);
   }
 
@@ -128,13 +149,15 @@ export class MenuController {
     if (!this.renderer) return;
     const base = Math.min(window.devicePixelRatio, 2);
     this.renderer.setPixelRatio(on ? Math.max(base, Math.min(window.devicePixelRatio * 1.6, 2)) : base);
+    // Resizing clears the canvas; draw right away so the browser never shows the blank frame (a flash)
+    this.renderNow?.();
     this.dirty = true;
   }
 
   // While a section is open the view is still, so main.js only redraws when something changed.
   // Returns (and clears) whether a redraw was requested since the last frame.
   takeDirty() {
-    const d = this.dirty;
+    const d = this.dirty || this.active === 'projects';
     this.dirty = false;
     return d;
   }
@@ -149,6 +172,7 @@ export class MenuController {
       return;
     }
     if (id === 'back') this.back();
+    else if (surface.click) { if (surface.click(id) === 'back') this.back(); }
     else window.open(id, id.startsWith('mailto:') ? '_self' : '_blank', 'noopener');
   }
 
@@ -165,6 +189,7 @@ export class MenuController {
   back() {
     if (this.active === null || this.cameraController.getIsAnimating()) return;
     this.surfaces[this.active]?.setHovered(null);
+    if (this.active === 'projects') this.surfaces.projects.setFocused(false);
     this.setSharp(false);
     this.cameraController.resetCamera(() => { this.active = null; });
   }
