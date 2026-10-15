@@ -1,7 +1,8 @@
 import './style.scss'
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { updateProgress, showLoadingScreen } from './loading.js';
+import { Intro, downloadFraction } from './intro/Intro.js';
+import { LightsReveal } from './intro/LightsReveal.js';
 import { CameraController } from './camera/CameraController.js';
 import { AssetLoader } from './loaders/AssetLoader.js';
 import { EventManager } from './events/EventManager.js';
@@ -12,6 +13,9 @@ import { ViewControls } from './ui/ViewControls.js';
 
 let trainLoop = null;
 const clock = new THREE.Clock();
+
+// Neon-sign intro: already on screen (index.html); its tubes follow the model download
+const intro = new Intro();
 
 const canvas = document.querySelector("#experience-canvas");
 
@@ -54,7 +58,8 @@ camera.position.set( 24.45732511317063, 4.914951810646316, 15.36648732308515 );
 
 // Fill light for the parts of the model that are not baked (plain-color materials).
 // Baked lightmaps use MeshBasicMaterial and ignore these.
-scene.add(new THREE.HemisphereLight(0xb8c4ff, 0x2a2233, 1.6));
+const fillLight = new THREE.HemisphereLight(0xb8c4ff, 0x2a2233, 1.6);
+scene.add(fillLight);
 const moonLight = new THREE.DirectionalLight(0xdfe6ff, 1.2);
 moonLight.position.set(30, 50, 20);
 scene.add(moonLight);
@@ -91,7 +96,9 @@ uiManager.setBackToSceneCallback(() => {
   cameraController.resetCamera();
 });
 
-assetLoader.loadModel('models/porto-ril.glb', (glb) => {
+assetLoader.loadModel('models/porto-ril.glb', async (glb) => {
+  intro.setProgress(0.92);
+
   // Store reference to clickable screen
   glb.scene.traverse((child) => {
     if (child.isMesh && child.name.includes("ClickableScreen_Raycaster")) {
@@ -132,11 +139,49 @@ assetLoader.loadModel('models/porto-ril.glb', (glb) => {
     const focus = cafe ? cafe.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 8, 0)) : new THREE.Vector3(0, 8, 0);
     cameraController.setStartView(startCamera, focus);
   }
+
+  // Opening: the scene waits in the dark with only the cafe's neon sign lit. Compile and draw it once
+  // behind the intro so the first visible frame doesn't stutter, then hand over.
+  const sign = ['BAKE_Cafe1F_Live_4', 'BAKE_Cafe1F_Live_5'].map((name) => glb.scene.getObjectByName(name)).filter(Boolean);
+  const reveal = new LightsReveal(glb.scene, [fillLight, moonLight], sign);
+  reveal.dark();
+  await renderer.compileAsync(scene, camera).catch(() => {});
+  renderer.render(scene, camera);
+
+  intro.ready({
+    signRect: () => screenRect(sign),
+    onReveal: () => reveal.play(() => window.dispatchEvent(new Event('loading-done'))),
+  });
 },
-null,
+(event) => intro.setProgress(0.9 * downloadFraction(event)),
 (error) => {
   console.error('Failed to load 3D model:', error);
+  intro.fail('Could not load the scene. Please refresh.');
 });
+
+// Where a flat object (like the sign) appears on screen (CSS px), or null if it's missing or behind
+// the camera. Only its face counts: the box is flattened along its thinnest side, so the sign's depth
+// doesn't make the rectangle bigger.
+function screenRect(objects) {
+  if (!objects.length) return null;
+  const box = new THREE.Box3();
+  objects.forEach((object) => box.expandByObject(object));
+  const size = box.getSize(new THREE.Vector3());
+  const thin = ['x', 'y', 'z'].reduce((a, b) => (size[b] < size[a] ? b : a));
+  box.min[thin] = box.max[thin] = (box.min[thin] + box.max[thin]) / 2;
+  camera.updateMatrixWorld();
+  const rect = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  const corner = new THREE.Vector3();
+  for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
+    corner.set(x, y, z).project(camera);
+    if (corner.z > 1) return null;
+    const sx = (corner.x + 1) / 2 * window.innerWidth;
+    const sy = (1 - corner.y) / 2 * window.innerHeight;
+    rect.minX = Math.min(rect.minX, sx); rect.maxX = Math.max(rect.maxX, sx);
+    rect.minY = Math.min(rect.minY, sy); rect.maxY = Math.max(rect.maxY, sy);
+  }
+  return { x: rect.minX, y: rect.minY, width: rect.maxX - rect.minX, height: rect.maxY - rect.minY };
+}
 
 
 // "How to move" hint (closable, ? brings it back) and a Reset view button, once loading is done

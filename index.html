@@ -3,40 +3,74 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <style>
-      #loadingScreen {
-        opacity: 0;
-      }
-    </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>fluorineheit</title>
+    <!-- Intro styles load with the page (not through JS) so the sign shows on the first paint -->
+    <link rel="stylesheet" href="/src/intro/intro.css" />
   </head>
   <body>
     <div id="app">
     </div>
 
-    <div class="loading-container" id="loadingScreen">
-        <div class="particles" id="particles"></div>
-        
-        <div class="logo-container">
-            <div class="logo-text">fluorineheit</div>
-            <div class="logo-fill" id="logoFill">fluorineheit</div>
-        </div>
-        
-        <div class="progress-text" id="progressText">Loading Assets</div>
-        
-        <div class="progress-container">
-            <div class="progress-bar" id="progressBar"></div>
-        </div>
-        
-        <div class="loading-dots"></div>
-    </div>
+    <!-- Intro: the cafe's neon sign lights up tube by tube as the scene loads (src/intro/Intro.js) -->
+    <div id="intro" class="intro">
+      <div class="intro__backdrop"></div>
+      <div class="intro__stage">
+        <svg class="intro__sign" viewBox="0 0 900 270" role="img" aria-label="Fluorine Cafe">
+          <defs>
+            <filter id="neon-glow" filterUnits="userSpaceOnUse" x="-60" y="-60" width="1020" height="390">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="near" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="13" result="far" />
+              <feMerge>
+                <feMergeNode in="far" />
+                <feMergeNode in="near" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
 
+          <!-- Each .neon-tube lights in document order -->
+          <g class="neon-tube neon-pink" filter="url(#neon-glow)">
+            <rect class="neon-line" x="12" y="12" width="876" height="246" rx="18" />
+          </g>
+          <g class="neon-tube neon-cyan" filter="url(#neon-glow)">
+            <path class="neon-line" d="M62 120 H170 V178 Q170 212 136 212 H96 Q62 212 62 178 Z" />
+            <path class="neon-line" d="M170 136 Q204 136 204 160 Q204 184 170 184" />
+            <path class="neon-line" d="M44 234 H190" />
+          </g>
+          <g class="neon-tube neon-cyan" filter="url(#neon-glow)">
+            <path class="neon-line" d="M98 100 Q86 86 98 72 Q110 58 98 44" />
+            <path class="neon-line" d="M134 100 Q122 86 134 72 Q146 58 134 44" />
+          </g>
+          <g class="neon-tube neon-pink" filter="url(#neon-glow)"><text class="neon-letter" x="302" y="140">F</text></g>
+          <g class="neon-tube neon-pink" filter="url(#neon-glow)"><text class="neon-letter" x="372" y="140">L</text></g>
+          <g class="neon-tube neon-pink" filter="url(#neon-glow)"><text class="neon-letter" x="450" y="140">U</text></g>
+          <g class="neon-tube neon-pink" filter="url(#neon-glow)"><text class="neon-letter" x="536" y="140">O</text></g>
+          <g class="neon-tube neon-pink" filter="url(#neon-glow)"><text class="neon-letter" x="622" y="140">R</text></g>
+          <g class="neon-tube neon-pink" filter="url(#neon-glow)" data-buzz><text class="neon-letter" x="682" y="140">I</text></g>
+          <g class="neon-tube neon-pink" filter="url(#neon-glow)"><text class="neon-letter" x="742" y="140">N</text></g>
+          <g class="neon-tube neon-pink" filter="url(#neon-glow)"><text class="neon-letter" x="822" y="140">E</text></g>
+          <g class="neon-tube neon-cyan" filter="url(#neon-glow)">
+            <ellipse class="neon-line" cx="330" cy="208" rx="24" ry="16" transform="rotate(-20 330 208)" />
+            <path class="neon-line" d="M316 214 Q330 200 344 202" />
+            <ellipse class="neon-line" cx="404" cy="216" rx="24" ry="16" transform="rotate(15 404 216)" />
+            <path class="neon-line" d="M390 212 Q404 226 418 220" />
+            <ellipse class="neon-line" cx="478" cy="206" rx="24" ry="16" transform="rotate(-10 478 206)" />
+            <path class="neon-line" d="M464 210 Q478 198 492 202" />
+          </g>
+          <g class="neon-tube neon-cyan" filter="url(#neon-glow)"><text class="neon-script" x="560" y="232">Cafe</text></g>
+        </svg>
+
+        <div class="intro__status">
+          <span class="intro__percent" aria-live="polite">0%</span>
+          <button class="intro__enter" type="button">Enter</button>
+        </div>
+      </div>
+    </div>
 
     <div id="experience">
       <canvas id="experience-canvas" class="experience-canvas"></canvas>
     </div>
-    <script type="module" src="/src/loading.js"></script>
     <script type="module" src="/src/main.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
