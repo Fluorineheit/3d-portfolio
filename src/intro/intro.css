@@ -1,0 +1,163 @@
+/* Intro: neon sign loader (src/intro/Intro.js). Linked from index.html so it paints before any JS. */
+
+.intro {
+  --pink: #ff4fa3;
+  --pink-core: #ffe3f1;
+  --cyan: #5ee7ff;
+  --dead-line: #3a2735;
+  --dead-fill: #1a1420;
+
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  color: #d8d4e6;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+.intro__backdrop {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, #150d1d 0%, #08060c 60%, #030206 100%);
+}
+
+.intro__stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  width: min(760px, calc(100vw - 32px));
+}
+
+.intro__sign {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  transform-origin: center;
+}
+
+/* Tubes: an unlit glass copy underneath (.neon-dead, added by JS) and the lit copy on top */
+.neon-line {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.neon-letter,
+.neon-script {
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke-linejoin: round;
+}
+
+.neon-letter {
+  font: 800 104px 'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', Arial, sans-serif;
+  stroke-width: 6;
+}
+
+.neon-script {
+  text-anchor: start;
+  font: italic 700 80px 'Segoe Script', 'Brush Script MT', 'Snell Roundhand', cursive;
+  stroke-width: 3;
+}
+
+.neon-dead .neon-line { stroke: var(--dead-line); }
+.neon-dead .neon-letter,
+.neon-dead .neon-script { fill: var(--dead-fill); stroke: var(--dead-line); }
+
+.neon-tube { opacity: 0; }
+.neon-pink .neon-line { stroke: var(--pink); }
+.neon-pink .neon-letter { fill: var(--pink-core); stroke: var(--pink); }
+.neon-cyan .neon-line { stroke: var(--cyan); }
+.neon-cyan .neon-script { fill: #d9fbff; stroke: var(--cyan); }
+
+.neon-tube.is-on {
+  animation: neon-on 0.6s linear forwards;
+}
+
+/* Once fully lit, one letter keeps a faint buzz, like an old tube */
+.intro.is-ready .neon-tube.is-on[data-buzz] {
+  animation: neon-on 0.6s linear forwards, neon-buzz 5s 1s linear infinite;
+}
+
+@keyframes neon-on {
+  0% { opacity: 0; }
+  8% { opacity: 0.9; }
+  12% { opacity: 0.1; }
+  20% { opacity: 0.75; }
+  26% { opacity: 0; }
+  34% { opacity: 1; }
+  40% { opacity: 0.4; }
+  48%, 100% { opacity: 1; }
+}
+
+@keyframes neon-buzz {
+  0%, 70%, 74%, 78%, 100% { opacity: 1; }
+  72% { opacity: 0.35; }
+  76% { opacity: 0.6; }
+}
+
+/* Progress / Enter share one slot under the sign */
+.intro__status {
+  display: grid;
+  place-items: center;
+  height: 44px;
+}
+
+.intro__percent,
+.intro__enter {
+  grid-area: 1 / 1;
+  transition: opacity 0.4s ease;
+}
+
+.intro__percent {
+  font: 600 0.75rem/1 ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  letter-spacing: 0.25em;
+  color: #6f6880;
+}
+
+.intro__enter {
+  padding: 12px 34px;
+  border: 1px solid rgba(94, 231, 255, 0.5);
+  border-radius: 999px;
+  background: transparent;
+  color: #c4f7ff;
+  font: 600 0.8rem/1 system-ui, sans-serif;
+  letter-spacing: 0.35em;
+  text-indent: 0.35em; /* balance the trailing letter-spacing */
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: 0 0 18px rgba(94, 231, 255, 0.15), inset 0 0 12px rgba(94, 231, 255, 0.08);
+  transition: opacity 0.4s ease, box-shadow 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+
+.intro__enter:hover,
+.intro__enter:focus-visible {
+  color: #fff;
+  border-color: var(--cyan);
+  box-shadow: 0 0 26px rgba(94, 231, 255, 0.4), inset 0 0 16px rgba(94, 231, 255, 0.2);
+  outline: none;
+}
+
+.intro.is-ready .intro__percent { opacity: 0; }
+.intro.is-ready .intro__enter { opacity: 1; pointer-events: auto; }
+.intro.is-leaving .intro__status { opacity: 0; transition: opacity 0.2s ease; }
+.intro.is-leaving { pointer-events: none; }
+
+.intro.is-failed .intro__percent {
+  letter-spacing: 0.05em;
+  color: #ff8fbf;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neon-tube.is-on,
+  .intro.is-ready .neon-tube.is-on[data-buzz] {
+    animation: none;
+    opacity: 1;
+  }
+}

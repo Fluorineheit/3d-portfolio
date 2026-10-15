@@ -1,7 +1,6 @@
 // src/loaders/AssetLoader.js
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { updateProgress } from '../loading.js';
 import { UIRenderer } from '../ui/UIRenderer.js';
 
 export class AssetLoader {
@@ -12,14 +11,10 @@ export class AssetLoader {
     this.gltfLoader = new GLTFLoader(this.loadingManager);
     this.uiRenderer = new UIRenderer()
     
-    // Texture map configuration
+    // Older objects still textured from a separate bake image (by exact object name). Loaded only
+    // when the model has the object; the rest of the scene carries its lightmaps in the GLB.
     this.textureMap = {
-      Floor: { texture: '/textures/MainFloorBake.jpg' },
-      MainBuilding: { texture: '/textures/BuildingBake.jpg' },
-      Items: { texture: '/textures/ItemsBake.jpg' },
       Tree: { texture: '/textures/holobake.png' },
-      Text: { texture: '/textures/FontBake.jpg' },
-      ClickableScreen_Raycaster: { texture: '/textures/Clickable.jpg' }
     };
     
     // Loaded textures storage
@@ -60,23 +55,18 @@ export class AssetLoader {
     this.onCompleteCallback = null;
     
     this.setupLoadingManager();
-    this.preloadTextures();
   }
 
   // Setup loading manager with progress tracking
   setupLoadingManager() {
     this.loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
-      const progress = 30 + (itemsLoaded / itemsTotal) * 70;
-      updateProgress(progress);
-      
+      const progress = (itemsLoaded / itemsTotal) * 100;
       if (this.onProgressCallback) {
         this.onProgressCallback(url, itemsLoaded, itemsTotal, progress);
       }
     };
 
     this.loadingManager.onLoad = () => {
-      updateProgress(100, "All assets loaded.");
-      
       if (this.onCompleteCallback) {
         this.onCompleteCallback();
       }
@@ -87,21 +77,20 @@ export class AssetLoader {
     };
   }
 
-  // Preload all textures
-  preloadTextures() {
-    Object.entries(this.textureMap).forEach(([key, paths]) => {
-      const texturePath = this.textureLoader.load(paths.texture);
-      texturePath.channel = 1;
-      texturePath.flipY = false;
-      texturePath.colorSpace = THREE.SRGBColorSpace;
-      this.loadedTextures.texture[key] = texturePath;
-    });
+  // Bake image for one of the textureMap objects, loaded on first use
+  loadMappedTexture(key) {
+    if (!this.loadedTextures.texture[key]) {
+      const texture = this.textureLoader.load(this.textureMap[key].texture);
+      texture.channel = 1;
+      texture.flipY = false;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      this.loadedTextures.texture[key] = texture;
+    }
+    return this.loadedTextures.texture[key];
   }
 
   // Load custom fonts
   async loadCustomFonts() {
-    updateProgress(5, "Loading custom fonts...");
-    
     try {
       // Load all fonts
       const loadedFonts = await Promise.all(
@@ -153,8 +142,6 @@ export class AssetLoader {
 
   // Load social media icons
   async loadSocialIcons() {
-    updateProgress(15, "Loading social media icons...");
-    
     const iconPaths = [
       { name: 'linkedin', path: '/icons/linkedin-color.svg' },
       { name: 'github', path: '/icons/github.svg' },
@@ -205,7 +192,7 @@ export class AssetLoader {
 
   // Legacy bake textures read the second UV map; meshes exported without one fall back to the first
   getLegacyTexture(mesh) {
-    const texture = this.loadedTextures.texture[mesh.name];
+    const texture = this.loadMappedTexture(mesh.name);
     if (mesh.geometry.attributes.uv1) return texture;
     const fallback = texture.clone();
     fallback.channel = 0;
@@ -239,8 +226,6 @@ export class AssetLoader {
       // Load social icons
       const iconCache = await this.loadSocialIcons();
 
-      // taro sini
-      updateProgress(25, "Loading project images...");
       await this.uiRenderer.preloadProjectImages();
       
       return {
