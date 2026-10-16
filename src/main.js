@@ -10,8 +10,11 @@ import { UIManager } from './ui/UIManager.js';
 import { MenuController } from './ui/MenuController.js';
 import { TrainLoop } from './scene/TrainLoop.js';
 import { ViewControls } from './ui/ViewControls.js';
+import { sound } from './audio/SoundEngine.js';
+import { TrainSound } from './audio/TrainSound.js';
 
 let trainLoop = null;
+let trainSound = null;
 const clock = new THREE.Clock();
 
 // Neon-sign intro: already on screen (index.html); its tubes follow the model download
@@ -98,7 +101,10 @@ assetLoader.loadModel('models/porto-ril.glb', async (glb) => {
   // The train drives along the viaduct and loops
   const train = glb.scene.getObjectByName('Train_Root');
   const viaduct = glb.scene.getObjectByName('BAKE_Viaduct');
-  if (train && viaduct) trainLoop = new TrainLoop(train, viaduct, renderer);
+  if (train && viaduct) {
+    trainLoop = new TrainLoop(train, viaduct, renderer);
+    trainSound = new TrainSound(trainLoop);
+  }
 
   // Panning stays over the map: the pivot stops PAN_MARGIN short of the street area's edge, and the
   // camera (which trails it) no further than CAMERA_MARGIN past it, so the empty void stays out of view
@@ -137,7 +143,12 @@ assetLoader.loadModel('models/porto-ril.glb', async (glb) => {
 
   intro.ready({
     signRect: () => screenRect(sign),
-    onEnter: startRendering,
+    onEnter: () => {
+      // Enter is the user gesture browsers require before any sound
+      sound.unlock();
+      sound.click();
+      startRendering();
+    },
     onReveal: () => reveal.play(() => window.dispatchEvent(new Event('loading-done'))),
   });
 },
@@ -224,6 +235,7 @@ const render = () =>{
   // Cap the step so a background tab doesn't make the train jump on return
   const dt = Math.min(clock.getDelta(), 0.1);
   trainLoop?.update(dt);
+  trainSound?.update(dt, camera);
   menuController.update(dt);
   viewControls.update();
   const orbited = controls.update();

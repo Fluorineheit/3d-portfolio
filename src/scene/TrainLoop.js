@@ -21,6 +21,15 @@ export class TrainLoop {
     const x = root.position.x;
     const back = trainBox.min.x - x;
     const front = trainBox.max.x - x;
+    // Kept for TrainSound: where the train is, and where it's visible
+    this.back = back;
+    this.front = front;
+    this.trackMinX = trackBox.min.x;
+    this.trackMaxX = trackBox.max.x;
+    const center = trainBox.getCenter(new THREE.Vector3());
+    this.centerY = center.y;
+    this.centerZ = center.z;
+
     // Fully hidden before the first end, fully hidden after the second
     this.startX = direction > 0 ? trackBox.min.x - front : trackBox.max.x - back;
     this.endX = direction > 0 ? trackBox.max.x - back : trackBox.min.x - front;
@@ -39,6 +48,19 @@ export class TrainLoop {
 
     // Respect "reduce motion": leave the train parked where it was placed in Blender
     this.enabled = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  // Driving along the track (not paused between passes, not parked for reduced motion)
+  get moving() {
+    return this.enabled && this.wait <= 0;
+  }
+
+  // The part of the train between the viaduct's ends, along X, or null when it's hidden
+  visibleSpan() {
+    const x = this.root.position.x;
+    const minX = Math.max(x + this.back, this.trackMinX);
+    const maxX = Math.min(x + this.front, this.trackMaxX);
+    return minX < maxX ? { minX, maxX } : null;
   }
 
   update(dt) {

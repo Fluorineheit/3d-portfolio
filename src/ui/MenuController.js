@@ -8,6 +8,7 @@ import { SurfaceDisplay } from './SurfaceDisplay.js';
 import { drawAboutNote, drawCredits } from './surfaceDesigns.js';
 import { ProjectsScreen } from './ProjectsScreen.js';
 import { prepareFlatSurface } from './flatSurface.js';
+import { sound } from '../audio/SoundEngine.js';
 
 // Button object name (as in Blender) -> section
 const ACTIONS = {
@@ -130,6 +131,8 @@ export class MenuController {
       return;
     }
     this.active = section;
+    sound.click();
+    sound.whoosh(1);
     const margin = { about: 1.6, credits: 1.12, projects: 1.06 }[section];
     const { position, target } = frameObjects([surface.mesh], this.camera, this.camera.position, { margin });
     // About keeps the default zoom range tight so the note stays framed; other sections use the default
@@ -171,6 +174,7 @@ export class MenuController {
       if (!hit || hit.object !== surface?.mesh) this.back();
       return;
     }
+    sound.click();
     if (id === 'back') this.back();
     else if (surface.click) { if (surface.click(id) === 'back') this.back(); }
     else window.open(id, id.startsWith('mailto:') ? '_self' : '_blank', 'noopener');
@@ -188,6 +192,7 @@ export class MenuController {
 
   back() {
     if (this.active === null || this.cameraController.getIsAnimating()) return;
+    sound.whoosh(-1);
     this.surfaces[this.active]?.setHovered(null);
     if (this.active === 'projects') this.surfaces.projects.setFocused(false);
     this.setSharp(false);
