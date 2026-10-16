@@ -1,5 +1,7 @@
 // src/ui/ViewControls.js
 
+import { sound } from '../audio/SoundEngine.js';
+
 const HINT_CLOSED_KEY = 'controlsHintClosed';
 
 const DESKTOP = [
@@ -15,6 +17,8 @@ const TOUCH = [
 ];
 
 const ICON_RESET = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>';
+const ICON_SOUND = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+const ICON_MUTED = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
 const ICON_CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
 function readClosed() {
@@ -31,7 +35,9 @@ function saveClosed(closed) {
  * On-screen helpers for the free view (bottom of the screen):
  *  - the "how to move" hint, closable with x and brought back with the ? button
  *  - a Reset view button, shown once the camera has left the opening shot
- * Both hide while a section (Projects / About / Credits) is open; those have their own way back.
+ *  - a sound on/off button
+ * The hint, ? and Reset hide while a section (Projects / About / Credits) is open; those have their own
+ * way back. The sound button stays.
  */
 export class ViewControls {
   constructor({ cameraController, menuController, controls }) {
@@ -47,8 +53,14 @@ export class ViewControls {
 
     this.resetButton = this.makeButton(ICON_RESET, 'Reset view', () => this.resetView());
     this.resetButton.classList.add('view-toolbar__reset');
-    this.helpButton = this.makeButton('?', 'Show controls', () => this.setHintOpen(!this.hintOpen));
-    this.toolbar.append(this.resetButton, this.helpButton);
+    this.helpButton = this.makeButton('?', 'Show controls', () => {
+      sound.click();
+      this.setHintOpen(!this.hintOpen);
+    });
+    this.muteButton = this.makeButton('', 'Mute sound', () => this.toggleMute());
+    this.updateMuteButton(sound.muted);
+    sound.onMuteChange((muted) => this.updateMuteButton(muted));
+    this.toolbar.append(this.resetButton, this.helpButton, this.muteButton);
     document.body.append(this.hint, this.toolbar);
   }
 
@@ -90,7 +102,10 @@ export class ViewControls {
     close.innerHTML = ICON_CLOSE;
     close.title = 'Hide controls';
     close.setAttribute('aria-label', 'Hide controls');
-    close.addEventListener('click', () => this.setHintOpen(false));
+    close.addEventListener('click', () => {
+      sound.click();
+      this.setHintOpen(false);
+    });
     el.append(items, close);
     return el;
   }
@@ -103,7 +118,23 @@ export class ViewControls {
 
   resetView() {
     if (this.cameraController.getIsAnimating() || this.menuController.isInSection()) return;
+    sound.click();
+    sound.whoosh(-1);
     this.cameraController.resetCamera();
+  }
+
+  toggleMute() {
+    const muted = !sound.muted;
+    sound.setMuted(muted);
+    if (!muted) sound.click();
+  }
+
+  updateMuteButton(muted) {
+    this.muteButton.innerHTML = muted ? ICON_MUTED : ICON_SOUND;
+    const label = muted ? 'Turn sound on' : 'Mute sound';
+    this.muteButton.title = label;
+    this.muteButton.setAttribute('aria-label', label);
+    this.muteButton.setAttribute('aria-pressed', String(muted));
   }
 
   // Whether the camera is away from the opening shot
@@ -129,9 +160,13 @@ export class ViewControls {
       this.helpButton.classList.toggle('is-active', showHint);
       this.helpButton.setAttribute('aria-pressed', String(showHint));
     }
-    if (free !== this.shownToolbar) {
-      this.shownToolbar = free;
-      this.toolbar.classList.toggle('is-visible', free);
+    if (free !== this.shownFree) {
+      this.shownFree = free;
+      this.helpButton.hidden = !free;
+    }
+    if (this.ready !== this.shownToolbar) {
+      this.shownToolbar = this.ready;
+      this.toolbar.classList.toggle('is-visible', this.ready);
     }
   }
 }

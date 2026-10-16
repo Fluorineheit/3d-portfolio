@@ -150,6 +150,9 @@
   outline: none;
 }
 
+/* The faded-out percentage shares the button's spot and (being semi-transparent) is drawn above it:
+   it must not catch the click */
+.intro__percent { pointer-events: none; }
 .intro.is-ready .intro__percent { opacity: 0; }
 .intro.is-ready .intro__enter { opacity: 1; pointer-events: auto; }
 .intro.is-leaving .intro__status { opacity: 0; transition: opacity 0.2s ease; }
