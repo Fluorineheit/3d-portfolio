@@ -9,7 +9,6 @@ import { drawAboutNote, drawCredits } from './surfaceDesigns.js';
 import { ProjectsScreen } from './ProjectsScreen.js';
 import { prepareFlatSurface } from './flatSurface.js';
 import { sound } from '../audio/SoundEngine.js';
-import { inputMode } from './inputMode.js';
 
 // Button object name (as in Blender) -> section
 const ACTIONS = {
@@ -27,7 +26,6 @@ const MARGIN = {
 const COMPACT_BELOW = { about: 460, credits: 900, projects: 800 };
 const HOVER_GLOW = 0.45;    // plate tint strength on hover
 const HOVER_SCALE = 1.06;
-const PULSE_GLOW = 0.3;     // touch screens: gentle breathing glow instead of hover
 
 export class MenuController {
   constructor({ camera, cameraController, uiManager, renderer, renderNow }) {
@@ -92,32 +90,9 @@ export class MenuController {
     this.dirty = true;
   }
 
-  // Per-frame: ticker scroll, slideshow, clock; on touch screens the menu buttons breathe
+  // Per-frame: ticker scroll, slideshow, clock
   update(dt) {
     this.surfaces.projects?.update(dt);
-    if (inputMode.touch || this.pulsing) this.pulse(dt);
-  }
-
-  // No hover on touch screens, so the plates glow softly in turn while the menu is in reach
-  pulse(dt) {
-    const on = inputMode.touch && this.isAtPlaza() && this.hovered === null;
-    if (!on && !this.pulsing) return;
-    this.pulseTime = (this.pulseTime ?? 0) + dt;
-    let i = 0;
-    for (const { glow } of this.buttons.values()) {
-      const wave = on ? (Math.sin(this.pulseTime * 2.2 - i * 0.9) + 1) / 2 : 0;
-      for (const { material, base, baseIntensity } of glow.plates) {
-        if (on) {
-          material.emissive.copy(glow.color);
-          material.emissiveIntensity = 0.04 + PULSE_GLOW * wave;
-        } else {
-          material.emissive.copy(base);
-          material.emissiveIntensity = baseIntensity;
-        }
-      }
-      i++;
-    }
-    this.pulsing = on;
   }
 
   // Hover = the dark plate lights up in the button's own label color and the button pops out a little.
