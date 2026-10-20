@@ -86,7 +86,8 @@ export function drawCredits(ctx, W, H, hovered) {
 }
 
 // The note pinned on the cork board: paper with the bio written on it, link "stickers" at the bottom
-export function drawAboutNote(ctx, W, H, hovered) {
+export function drawAboutNote(ctx, W, H, hovered, view) {
+  if (view?.compact) return drawAboutNoteCompact(ctx, W, H, hovered, view);
   const data = panels.about;
   ctx.fillStyle = '#f3ecd8';
   ctx.fillRect(0, 0, W, H);
@@ -142,6 +143,95 @@ export function drawAboutNote(ctx, W, H, hovered) {
     ctx.fillText(link.label, x + 20, linkY + 13);
     regions.push({ id: link.href, x, y: linkY, w, h: 52 });
     x += w + gap;
+  }
+  return regions;
+}
+
+// Large print for phones: same note, bigger text. The bio is split into pages, keeping paragraphs
+// together where they fit. The bottom corners are under the note's tape strips (3D objects), so the
+// link stickers sit centred above them and "Next >" between them.
+function drawAboutNoteCompact(ctx, W, H, hovered, view) {
+  const data = panels.about;
+  const pad = 44;
+  const lineH = 46;
+  ctx.fillStyle = '#f3ecd8';
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(70, 110, 160, 0.18)';
+  ctx.lineWidth = 2;
+  for (let ly = 126; ly < H - 20; ly += lineH) {
+    ctx.beginPath(); ctx.moveTo(24, ly); ctx.lineTo(W - 24, ly); ctx.stroke();
+  }
+  ctx.textBaseline = 'top';
+
+  ctx.textAlign = 'left';
+  ctx.font = 'bold 64px "Conthrax"';
+  ctx.fillStyle = '#2b2440';
+  ctx.fillText(data.title, pad, 30);
+
+  ctx.font = 'bold 44px "Searider Falcon"';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = hovered === 'back' ? '#ff4a4e' : '#BE2528';
+  ctx.fillText('← Back', W - pad, 40);
+  const backW = ctx.measureText('← Back').width;
+  const regions = [{ id: 'back', x: W - pad - backW - 24, y: 20, w: backW + 48, h: 92 }];
+
+  // Pages of lines (null = paragraph gap)
+  ctx.textAlign = 'left';
+  ctx.font = '34px "Conthrax"';
+  const linkY = H - 196;
+  const top = 132;
+  const perPage = Math.floor((linkY - 16 - top) / lineH);
+  const pages = [];
+  let current = [];
+  for (const paragraph of data.paragraphs) {
+    let lines = wrap(ctx, paragraph, W - pad * 2);
+    const gap = current.length ? 1 : 0;
+    if (current.length + gap + lines.length <= perPage) {
+      if (gap) current.push(null);
+      current.push(...lines);
+      continue;
+    }
+    if (current.length) pages.push(current);
+    // A paragraph longer than a page is split across pages
+    while (lines.length > perPage) {
+      pages.push(lines.slice(0, perPage));
+      lines = lines.slice(perPage);
+    }
+    current = lines;
+  }
+  if (current.length) pages.push(current);
+  view.pages = pages.length;
+  const page = Math.min(view.page, pages.length - 1);
+  ctx.fillStyle = '#2b2a33';
+  (pages[page] ?? []).forEach((line, i) => {
+    if (line) ctx.fillText(line, pad, top + i * lineH);
+  });
+
+  // Link stickers (left) and page turn (right) along the bottom
+  ctx.font = 'bold 32px "Conthrax"';
+  const gap = 14;
+  const widths = data.links.map((l) => ctx.measureText(l.label).width + 40);
+  const stickersW = widths.reduce((a, b) => a + b, 0) + gap * (widths.length - 1);
+  let x = (W - stickersW) / 2;
+  for (const [i, link] of data.links.entries()) {
+    const w = widths[i];
+    roundRect(ctx, x, linkY, w, 72, 36);
+    ctx.fillStyle = hovered === link.href ? '#ff8cc8' : '#ff5fb2';
+    ctx.fill();
+    ctx.fillStyle = '#1a1424';
+    ctx.fillText(link.label, x + 20, linkY + 19);
+    regions.push({ id: link.href, x, y: linkY, w, h: 72 });
+    x += w + gap;
+  }
+  if (pages.length > 1) {
+    const label = page < pages.length - 1 ? `Next > ${page + 1}/${pages.length}` : `< Prev ${page + 1}/${pages.length}`;
+    ctx.font = 'bold 32px "Conthrax"';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = hovered === 'page' ? '#ff4a4e' : '#BE2528';
+    const pageY = H - 96;
+    ctx.fillText(label, W / 2, pageY);
+    const w = ctx.measureText(label).width;
+    regions.push({ id: 'page', x: (W - w) / 2 - 24, y: pageY - 20, w: w + 48, h: 76 });
   }
   return regions;
 }

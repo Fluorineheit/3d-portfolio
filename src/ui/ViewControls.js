@@ -1,6 +1,7 @@
 // src/ui/ViewControls.js
 
 import { sound } from '../audio/SoundEngine.js';
+import { inputMode } from './inputMode.js';
 
 const HINT_CLOSED_KEY = 'controlsHintClosed';
 
@@ -11,9 +12,9 @@ const DESKTOP = [
   ['Click', 'the menu board'],
 ];
 const TOUCH = [
-  ['Drag', 'look around'],
-  ['Two fingers', 'move & zoom'],
-  ['Tap', 'the menu board'],
+  ['Drag', 'look'],
+  ['Pinch', 'zoom'],
+  ['Tap', 'the menu'],
 ];
 
 const ICON_RESET = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>';
@@ -82,20 +83,14 @@ export class ViewControls {
   }
 
   makeHint() {
-    const touch = window.matchMedia('(pointer: coarse)').matches;
     const el = document.createElement('div');
     el.className = 'controls-hint';
     el.setAttribute('role', 'note');
     const items = document.createElement('div');
     items.className = 'controls-hint__items';
-    for (const [key, action] of touch ? TOUCH : DESKTOP) {
-      const item = document.createElement('span');
-      item.className = 'controls-hint__item';
-      const kbd = document.createElement('kbd');
-      kbd.textContent = key;
-      item.append(kbd, ` ${action}`);
-      items.append(item);
-    }
+    this.fillHint(items, inputMode.touch);
+    // Mouse and touch get different instructions; follow whichever is in use
+    inputMode.onChange((touch) => this.fillHint(items, touch));
     const close = document.createElement('button');
     close.type = 'button';
     close.className = 'controls-hint__close';
@@ -108,6 +103,18 @@ export class ViewControls {
     });
     el.append(items, close);
     return el;
+  }
+
+  fillHint(items, touch) {
+    items.replaceChildren();
+    for (const [key, action] of touch ? TOUCH : DESKTOP) {
+      const item = document.createElement('span');
+      item.className = 'controls-hint__item';
+      const kbd = document.createElement('kbd');
+      kbd.textContent = key;
+      item.append(kbd, ` ${action}`);
+      items.append(item);
+    }
   }
 
   setHintOpen(open) {
@@ -146,6 +153,7 @@ export class ViewControls {
 
   // Per frame; only touches the DOM when something changes
   update() {
+    inputMode.poll();
     const free = this.ready && !this.menuController.isInSection();
     const showReset = free && !this.cameraController.getIsAnimating() && this.isAway();
     const showHint = free && this.hintOpen;

@@ -110,7 +110,7 @@
 .intro__status {
   display: grid;
   place-items: center;
-  height: 44px;
+  height: 64px;
 }
 
 .intro__percent,
@@ -125,36 +125,71 @@
   color: #6f6880;
 }
 
+/* Enter: one more neon tube of the sign (cyan, like the cup and "Cafe"), lit last */
 .intro__enter {
-  padding: 12px 34px;
-  border: 1px solid rgba(94, 231, 255, 0.5);
+  position: relative;
+  padding: 14px 40px;
+  border: 2px solid #aef6ff;
   border-radius: 999px;
-  background: transparent;
-  color: #c4f7ff;
-  font: 600 0.8rem/1 system-ui, sans-serif;
-  letter-spacing: 0.35em;
-  text-indent: 0.35em; /* balance the trailing letter-spacing */
+  background: rgba(94, 231, 255, 0.05);
+  color: #e6fdff;
+  font: 800 1.15rem/1 'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', Arial, sans-serif;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em; /* balance the trailing letter-spacing */
   text-transform: uppercase;
+  text-shadow: 0 0 3px var(--cyan), 0 0 10px var(--cyan), 0 0 22px rgba(94, 231, 255, 0.6);
+  box-shadow:
+    0 0 4px var(--cyan),
+    0 0 14px rgba(94, 231, 255, 0.55),
+    inset 0 0 6px rgba(94, 231, 255, 0.45);
   cursor: pointer;
   opacity: 0;
   pointer-events: none;
-  box-shadow: 0 0 18px rgba(94, 231, 255, 0.15), inset 0 0 12px rgba(94, 231, 255, 0.08);
-  transition: opacity 0.4s ease, box-shadow 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+
+/* Brighter glow on hover / focus: a separate layer whose opacity fades (cheap to animate) */
+.intro__enter::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  box-shadow: 0 0 26px 4px rgba(94, 231, 255, 0.55), inset 0 0 14px rgba(94, 231, 255, 0.35);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
 }
 
 .intro__enter:hover,
 .intro__enter:focus-visible {
   color: #fff;
-  border-color: var(--cyan);
-  box-shadow: 0 0 26px rgba(94, 231, 255, 0.4), inset 0 0 16px rgba(94, 231, 255, 0.2);
   outline: none;
+}
+
+.intro__enter:hover::after,
+.intro__enter:focus-visible::after {
+  opacity: 1;
+}
+
+.intro__enter:active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 640px) {
+  .intro__enter {
+    padding: 12px 34px;
+    font-size: 1rem;
+  }
 }
 
 /* The faded-out percentage shares the button's spot and (being semi-transparent) is drawn above it:
    it must not catch the click */
 .intro__percent { pointer-events: none; }
 .intro.is-ready .intro__percent { opacity: 0; }
-.intro.is-ready .intro__enter { opacity: 1; pointer-events: auto; }
+.intro.is-ready .intro__enter {
+  opacity: 1;
+  pointer-events: auto;
+  animation: neon-on 0.7s linear 0.15s both;   /* flickers on like the sign's tubes */
+}
 .intro.is-leaving .intro__status { opacity: 0; transition: opacity 0.2s ease; }
 .intro.is-leaving { pointer-events: none; }
 
@@ -165,7 +200,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .neon-tube.is-on,
-  .intro.is-ready .neon-tube.is-on[data-buzz] {
+  .intro.is-ready .neon-tube.is-on[data-buzz],
+  .intro.is-ready .intro__enter {
     animation: none;
     opacity: 1;
   }

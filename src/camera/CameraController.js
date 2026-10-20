@@ -1,11 +1,20 @@
 import * as THREE from 'three';
 import { getScreenFacing } from './screenFacing.js';
 
+// The opening shot is composed for a 16:9 screen. On narrower landscape screens the camera keeps that
+// horizontal view and widens vertically instead of cropping the sides, up to MAX_FOV.
+const DESIGN_ASPECT = 16 / 9;
+const MAX_FOV = 80;
+// Portrait screens (phones) get their own opening shot, closer in on the menu board with the cafe sign
+// above it: a narrower horizontal view, and the orbit turned slightly left and raised.
+const PORTRAIT = { hfov: 41.3, turn: -0.021, raise: -0.034, distance: 1.01 };
+
 
 export class CameraController {
   constructor(camera, controls) {
     this.camera = camera;
-    this.controls = controls;
+    this.controls = controls; 
+    this.homeNear = camera.near;
 
     // Animation state
     this.isAnimating = false;
@@ -38,8 +47,8 @@ export class CameraController {
     const along = Math.max(5, focus.clone().sub(position).dot(direction));
     const target = position.clone().addScaledVector(direction, along);
 
-    this.camera.fov = startCamera.fov;
-    this.camera.updateProjectionMatrix();
+    this.baseFov = startCamera.fov;
+    this.applyFov();
 
     this.originalCameraPosition.copy(position);
     this.originalTarget.copy(target);
@@ -62,7 +71,34 @@ export class CameraController {
     this.controls.update();
     // The limits above may nudge the camera (e.g. a tilt limit just inside the shot). Use the pose the
     // controls actually settled on as "home", so returning there doesn't snap at the end of the flight.
-    this.originalCameraPosition.copy(this.camera.position);
+    this.landscapeHome = this.camera.position.clone();
+    const orbit = new THREE.Spherical().setFromVector3(this.landscapeHome.clone().sub(target));
+    orbit.theta += PORTRAIT.turn;
+    orbit.phi += PORTRAIT.raise;
+    orbit.radius *= PORTRAIT.distance;
+    this.portraitHome = target.clone().add(new THREE.Vector3().setFromSpherical(orbit));
+    this.portrait = null;
+    this.updateHome();
+  }
+
+  get isPortrait() {
+    return this.camera.aspect < 1;
+  }
+
+  // Home pose for the current orientation. Turning the phone while at home moves to the other shot.
+  updateHome() {
+    if (!this.landscapeHome || this.portrait === this.isPortrait) return;
+    const atHome = this.portrait === null || (!this.isAnimating
+      && this.camera.position.distanceTo(this.originalCameraPosition) < 0.5
+      && this.controls.target.distanceTo(this.originalTarget) < 0.5);
+    this.portrait = this.isPortrait;
+    this.originalCameraPosition.copy(this.portrait ? this.portraitHome : this.landscapeHome);
+    if (atHome) {
+      this.stopGlide();
+      this.camera.position.copy(this.originalCameraPosition);
+      this.controls.target.copy(this.originalTarget);
+      this.controls.update();
+    }
   }
 
   // Distance at which the 3D UI panel (10.73 x 5.87) fits the view with some margin
@@ -108,6 +144,9 @@ export class CameraController {
     const endPosition = position.clone();
     const endTarget = target.clone();
     const arrival = endPosition.distanceTo(endTarget);
+    // Close-ups (the About note) end nearer than the scene's near clipping plane, which would cut the
+    // surface away: bring the near plane in for the visit, back out when returning home
+    this.setNear(Math.min(this.homeNear, arrival * minZoom * 0.5));
 
     let progress = 0;
     const duration = 1500; // 1.5 seconds
@@ -193,6 +232,7 @@ export class CameraController {
         this.controls.enableZoom = true;
         this.controls.enablePan = true;
         Object.assign(this.controls, this.homeLimits);
+        this.setNear(this.homeNear);
         
         // Call completion callback if provided
         if (onComplete) {
@@ -303,6 +343,30 @@ export class CameraController {
   // Update camera aspect ratio on resize
   onResize(width, height) {
     this.camera.aspect = width / height;
+    this.applyFov();
+    this.updateHome();
+  }
+
+  // Near clipping plane; the scene's own value (homeNear) keeps depth precision for the wide views
+  setNear(near) {
+    if (this.camera.near === near) return;
+    this.camera.near = near;
+    this.camera.updateProjectionMatrix();
+  }
+
+  // Vertical field of view for the current aspect (see DESIGN_ASPECT)
+  applyFov() {
+    const base = this.baseFov ?? this.camera.fov;
+    this.baseFov = base;
+    let fov = base;
+    if (this.isPortrait) {
+      const halfH = THREE.MathUtils.degToRad(PORTRAIT.hfov) / 2;
+      fov = Math.min(MAX_FOV, THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(halfH) / this.camera.aspect)));
+    } else if (this.camera.aspect < DESIGN_ASPECT) {
+      const halfH = Math.atan(Math.tan(THREE.MathUtils.degToRad(base) / 2) * DESIGN_ASPECT);
+      fov = Math.min(MAX_FOV, THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(halfH) / this.camera.aspect)));
+    }
+    this.camera.fov = fov;
     this.camera.updateProjectionMatrix();
   }
 

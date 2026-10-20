@@ -39,11 +39,12 @@ $glass-text: #e8e6f5;
 .controls-hint {
   position: fixed;
   left: 50%;
-  bottom: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom));
   transform: translate(-50%, 8px);
   display: flex;
   align-items: center;
   gap: 12px;
+  width: max-content; // centred with left: 50%, it would otherwise wrap at half the screen width
   max-width: calc(100vw - 32px - 2 * 56px);
   padding: 8px 8px 8px 18px;
   border-radius: 12px;
@@ -126,8 +127,8 @@ $glass-text: #e8e6f5;
 
 .view-toolbar {
   position: fixed;
-  right: 16px;
-  bottom: 24px;
+  right: calc(16px + env(safe-area-inset-right));
+  bottom: calc(24px + env(safe-area-inset-bottom));
   display: flex;
   gap: 8px;
   opacity: 0;
@@ -172,8 +173,17 @@ $glass-text: #e8e6f5;
 
 // Phones: the hint sits above the buttons instead of beside them
 @media (max-width: 640px) {
+  // Portrait phones: the menu board fills the lower half, the sky above is free
   .controls-hint {
-    bottom: 80px;
+    top: calc(16px + env(safe-area-inset-top));
+    bottom: auto;
     max-width: calc(100vw - 32px);
+    gap: 8px;
+    padding: 6px 6px 6px 14px;
+    font-size: 0.78rem;
+  }
+
+  .controls-hint__items {
+    gap: 4px 12px;
   }
 }
