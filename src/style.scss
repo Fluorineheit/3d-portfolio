@@ -173,8 +173,10 @@ $glass-text: #e8e6f5;
 
 // Phones: the hint sits above the buttons instead of beside them
 @media (max-width: 640px) {
+  // Portrait phones: the menu board fills the lower half, the sky above is free
   .controls-hint {
-    bottom: calc(80px + env(safe-area-inset-bottom));
+    top: calc(16px + env(safe-area-inset-top));
+    bottom: auto;
     max-width: calc(100vw - 32px);
     gap: 8px;
     padding: 6px 6px 6px 14px;
