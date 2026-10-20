@@ -10,7 +10,9 @@ const MAX_DISTANCE = 220;    // silent beyond this
 const SHAKE = 0.6;           // carriage rattle / sway / creak amount (0..1)
 const JOINT_SPACING = 16.8;  // rail joints: a "da-dum" every this many units travelled
 const PAIR_GAP = 4.4;        // between the two clacks of a "da-dum"
-const SLEEP_AFTER = 2;       // seconds of silence before the generators are stopped
+const TUNNEL_FADE = 0.5;     // time constant of the fade as the train slides into the tunnel (~1.5 s)
+const SLEEP_AFTER = 3;       // seconds of silence before the generators are stopped (the 5 s gap
+                             // between passes sleeps; the next pass wakes them fresh)
 
 const _point = new THREE.Vector3();
 const _toListener = new THREE.Vector3();
@@ -63,7 +65,7 @@ export class TrainSound {
     if (level < 0.003) {
       this.silentFor += dt;
       if (this.layers) {
-        this.layers.out.gain.setTargetAtTime(0, now, 0.1);
+        this.layers.out.gain.setTargetAtTime(0, now, TUNNEL_FADE);
         if (this.silentFor > SLEEP_AFTER) this.sleep();
       }
       return;
@@ -106,8 +108,13 @@ export class TrainSound {
     }
   }
 
-  // Continuous layers: rumble (with sway), motor hum, rail hiss
+  // Continuous layers: rumble (with sway), motor hum, rail hiss. Each pass starts fresh: no pitch or
+  // clack timing carried over from the previous one.
   wake(ctx) {
+    this.doppler = 1;
+    this.travelled = 0;
+    this.nextGrain = 0;
+    this.nextCreak = 0;
     const out = ctx.createGain();
     out.gain.value = 0;
     const pan = ctx.createStereoPanner();
