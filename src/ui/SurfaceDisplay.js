@@ -6,7 +6,9 @@ import * as THREE from 'three';
 export class SurfaceDisplay {
   /**
    * mesh: flat mesh with a 0-1 UV layout (glTF: v = 0 at the top)
-   * draw(ctx, width, height, hoveredId) -> [{ id, x, y, w, h }] clickable areas in layout pixels
+   * draw(ctx, width, height, hoveredId, view) -> [{ id, x, y, w, h }] clickable areas in layout pixels.
+   *   view = { compact, page }: compact is the large-print layout for small screens (phones); designs
+   *   that split long text into pages read `page` and may set view.pages.
    * scale: render resolution multiplier. Designs keep drawing in `width` x `height` layout pixels;
    *        the canvas is `scale` times larger so close-ups stay sharp.
    */
@@ -22,6 +24,7 @@ export class SurfaceDisplay {
     this.ctx = this.canvas.getContext('2d');
     this.regions = [];
     this.hovered = null;
+    this.view = { compact: false, page: 0, pages: 1 };
 
     this.texture = new THREE.CanvasTexture(this.canvas);
     this.texture.flipY = false; // glTF UVs: canvas top = v 0
@@ -38,7 +41,7 @@ export class SurfaceDisplay {
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.setTransform(this.scale, 0, 0, this.scale, 0, 0);
-    this.regions = this.draw(this.ctx, this.width, this.height, this.hovered) ?? [];
+    this.regions = this.draw(this.ctx, this.width, this.height, this.hovered, this.view) ?? [];
     this.texture.needsUpdate = true;
   }
 
@@ -49,6 +52,29 @@ export class SurfaceDisplay {
     const y = uv.y * this.height;
     const r = this.regions.find((a) => x >= a.x && x <= a.x + a.w && y >= a.y && y <= a.y + a.h);
     return r ? r.id : null;
+  }
+
+  // Large print for small screens; resets to the first page
+  setCompact(on) {
+    if (on === this.view.compact) return;
+    this.view.compact = on;
+    this.view.page = 0;
+    this.redraw();
+  }
+
+  // Back to the first page (when the section is opened again)
+  reset() {
+    if (this.view.page === 0) return;
+    this.view.page = 0;
+    this.redraw();
+  }
+
+  // Areas the surface handles itself: 'page' turns to the next page. Returns false for anything else.
+  click(id) {
+    if (id !== 'page') return false;
+    this.view.page = (this.view.page + 1) % Math.max(1, this.view.pages);
+    this.redraw();
+    return true;
   }
 
   setHovered(id) {

@@ -1,11 +1,17 @@
 import * as THREE from 'three';
 import { getScreenFacing } from './screenFacing.js';
 
+// The opening shot is composed for a 16:9 screen. On narrower screens (portrait phones) the camera keeps
+// that horizontal view and widens vertically instead of cropping the sides, up to MAX_FOV.
+const DESIGN_ASPECT = 16 / 9;
+const MAX_FOV = 80;
+
 
 export class CameraController {
   constructor(camera, controls) {
     this.camera = camera;
-    this.controls = controls;
+    this.controls = controls; 
+    this.homeNear = camera.near;
 
     // Animation state
     this.isAnimating = false;
@@ -38,8 +44,8 @@ export class CameraController {
     const along = Math.max(5, focus.clone().sub(position).dot(direction));
     const target = position.clone().addScaledVector(direction, along);
 
-    this.camera.fov = startCamera.fov;
-    this.camera.updateProjectionMatrix();
+    this.baseFov = startCamera.fov;
+    this.applyFov();
 
     this.originalCameraPosition.copy(position);
     this.originalTarget.copy(target);
@@ -108,6 +114,9 @@ export class CameraController {
     const endPosition = position.clone();
     const endTarget = target.clone();
     const arrival = endPosition.distanceTo(endTarget);
+    // Close-ups (the About note) end nearer than the scene's near clipping plane, which would cut the
+    // surface away: bring the near plane in for the visit, back out when returning home
+    this.setNear(Math.min(this.homeNear, arrival * minZoom * 0.5));
 
     let progress = 0;
     const duration = 1500; // 1.5 seconds
@@ -193,6 +202,7 @@ export class CameraController {
         this.controls.enableZoom = true;
         this.controls.enablePan = true;
         Object.assign(this.controls, this.homeLimits);
+        this.setNear(this.homeNear);
         
         // Call completion callback if provided
         if (onComplete) {
@@ -303,6 +313,26 @@ export class CameraController {
   // Update camera aspect ratio on resize
   onResize(width, height) {
     this.camera.aspect = width / height;
+    this.applyFov();
+  }
+
+  // Near clipping plane; the scene's own value (homeNear) keeps depth precision for the wide views
+  setNear(near) {
+    if (this.camera.near === near) return;
+    this.camera.near = near;
+    this.camera.updateProjectionMatrix();
+  }
+
+  // Vertical field of view for the current aspect (see DESIGN_ASPECT)
+  applyFov() {
+    const base = this.baseFov ?? this.camera.fov;
+    this.baseFov = base;
+    let fov = base;
+    if (this.camera.aspect < DESIGN_ASPECT) {
+      const halfH = Math.atan(Math.tan(THREE.MathUtils.degToRad(base) / 2) * DESIGN_ASPECT);
+      fov = Math.min(MAX_FOV, THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(halfH) / this.camera.aspect)));
+    }
+    this.camera.fov = fov;
     this.camera.updateProjectionMatrix();
   }
 

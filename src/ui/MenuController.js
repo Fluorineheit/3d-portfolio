@@ -9,6 +9,7 @@ import { drawAboutNote, drawCredits } from './surfaceDesigns.js';
 import { ProjectsScreen } from './ProjectsScreen.js';
 import { prepareFlatSurface } from './flatSurface.js';
 import { sound } from '../audio/SoundEngine.js';
+import { inputMode } from './inputMode.js';
 
 // Button object name (as in Blender) -> section
 const ACTIONS = {
@@ -16,8 +17,17 @@ const ACTIONS = {
   BTN_AboutMe: 'about',
   BTN_Credits: 'credits',
 };
+// How much room is left around a section's surface when the camera frames it
+const MARGIN = {
+  normal: { about: 1.6, credits: 1.12, projects: 1.06 },
+  compact: { about: 1.15, credits: 1.04, projects: 1.02 },
+};
+// CSS px: a surface shown narrower than this uses its large-print layout (where its normal text would
+// drop below ~11 px: e.g. the videotron's 20 px text over 1600 layout px needs ~800 px of screen)
+const COMPACT_BELOW = { about: 460, credits: 900, projects: 800 };
 const HOVER_GLOW = 0.45;    // plate tint strength on hover
 const HOVER_SCALE = 1.06;
+const PULSE_GLOW = 0.3;     // touch screens: gentle breathing glow instead of hover
 
 export class MenuController {
   constructor({ camera, cameraController, uiManager, renderer, renderNow }) {
@@ -66,11 +76,48 @@ export class MenuController {
     if (credits) this.surfaces.credits = new SurfaceDisplay(credits, { width: 2048, height: 1368, draw: drawCredits, scale: 1.5 });
     // The videotron: its exported UVs are collapsed, so give it a clean layout first
     if (this.screen) this.surfaces.projects = new ProjectsScreen(this.screen, prepareFlatSurface(this.screen, this.camera.position));
+
+    this.updateCompact();
+    window.addEventListener('resize', () => this.updateCompact());
   }
 
-  // Per-frame: ticker scroll, slideshow, clock
+  // Phones (or any small window): the surfaces switch to their large-print layouts. Judged by how wide
+  // a surface would appear when framed: under COMPACT_BELOW its normal text gets too small.
+  updateCompact() {
+    for (const [section, surface] of Object.entries(this.surfaces)) {
+      const aspect = surface.width / surface.height;
+      const shown = Math.min(window.innerWidth, window.innerHeight * aspect) / MARGIN.normal[section];
+      surface.setCompact(shown < COMPACT_BELOW[section]);
+    }
+    this.dirty = true;
+  }
+
+  // Per-frame: ticker scroll, slideshow, clock; on touch screens the menu buttons breathe
   update(dt) {
     this.surfaces.projects?.update(dt);
+    if (inputMode.touch || this.pulsing) this.pulse(dt);
+  }
+
+  // No hover on touch screens, so the plates glow softly in turn while the menu is in reach
+  pulse(dt) {
+    const on = inputMode.touch && this.isAtPlaza() && this.hovered === null;
+    if (!on && !this.pulsing) return;
+    this.pulseTime = (this.pulseTime ?? 0) + dt;
+    let i = 0;
+    for (const { glow } of this.buttons.values()) {
+      const wave = on ? (Math.sin(this.pulseTime * 2.2 - i * 0.9) + 1) / 2 : 0;
+      for (const { material, base, baseIntensity } of glow.plates) {
+        if (on) {
+          material.emissive.copy(glow.color);
+          material.emissiveIntensity = 0.04 + PULSE_GLOW * wave;
+        } else {
+          material.emissive.copy(base);
+          material.emissiveIntensity = baseIntensity;
+        }
+      }
+      i++;
+    }
+    this.pulsing = on;
   }
 
   // Hover = the dark plate lights up in the button's own label color and the button pops out a little.
@@ -133,7 +180,8 @@ export class MenuController {
     this.active = section;
     sound.click();
     sound.whoosh(1);
-    const margin = { about: 1.6, credits: 1.12, projects: 1.06 }[section];
+    surface.reset?.();
+    const margin = MARGIN[surface.view?.compact || surface.compact ? 'compact' : 'normal'][section];
     const { position, target } = frameObjects([surface.mesh], this.camera, this.camera.position, { margin });
     // About keeps the default zoom range tight so the note stays framed; other sections use the default
     const zoom = section === 'about' ? { minZoom: 0.9, maxZoom: 1.1 } : undefined;
@@ -175,9 +223,10 @@ export class MenuController {
       return;
     }
     sound.click();
-    if (id === 'back') this.back();
-    else if (surface.click) { if (surface.click(id) === 'back') this.back(); }
-    else window.open(id, id.startsWith('mailto:') ? '_self' : '_blank', 'noopener');
+    if (id === 'back') { this.back(); return; }
+    const result = surface.click?.(id);
+    if (result === 'back') this.back();
+    else if (!result && /^(https?:|mailto:)/.test(id)) window.open(id, id.startsWith('mailto:') ? '_self' : '_blank', 'noopener');
   }
 
   // Hover while a section is open: highlight drawn areas, returns whether something is clickable
